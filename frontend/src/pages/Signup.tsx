@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api } from '../services/api.ts';
 import { CheckCircle2, AlertTriangle, ArrowRight, Loader } from 'lucide-react';
 
 export default function Signup() {
@@ -12,43 +11,34 @@ export default function Signup() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Simple Client-side check
     if (password.length < 8) {
       setError('Password must be at least 8 characters long');
       return;
     }
 
     setLoading(true);
-    try {
-      await api.post('/auth/signup', {
-        fullName,
-        email,
-        password,
-      });
+    // Simulate signup completion
+    setTimeout(() => {
       setSuccess(true);
       setTimeout(() => {
         navigate('/login');
-      }, 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+      }, 1500);
+    }, 800);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative select-none">
+    <div className="min-h-screen bg-[#0b0f19] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative select-none">
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <h2 className="text-center text-3xl font-extrabold text-white tracking-tight">
           Create your account
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-400">
+        <p className="mt-2 text-center text-sm text-slate-450">
           Or{' '}
           <Link to="/login" className="font-semibold text-blue-500 hover:text-blue-400 transition-colors">
             sign in to your existing account
@@ -57,13 +47,13 @@ export default function Signup() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="bg-slate-900/80 backdrop-blur-md py-8 px-4 border border-slate-800/80 shadow-2xl rounded-2xl sm:px-10">
+        <div className="bg-slate-900/40 backdrop-blur-lg border border-slate-800/80 py-8 px-4 shadow-2xl rounded-2xl sm:px-10">
           {success ? (
-            <div className="rounded-xl bg-green-950/40 border border-green-900/60 p-4 text-center space-y-3">
+            <div className="rounded-xl bg-green-950/40 border border-green-900/60 p-6 text-center space-y-3">
               <CheckCircle2 className="mx-auto h-12 w-12 text-green-400" />
               <h3 className="text-sm font-semibold text-white">Registration Successful!</h3>
               <p className="text-xs text-green-300">
-                Redirecting you to the login page...
+                Redirecting you to the sign in screen...
               </p>
             </div>
           ) : (
@@ -87,8 +77,8 @@ export default function Signup() {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="appearance-none block w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-                    placeholder="Enter your name"
+                    className="appearance-none block w-full px-4 py-3 bg-slate-950/80 border border-slate-800/80 rounded-xl text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                    placeholder="John Doe"
                   />
                 </div>
               </div>
@@ -105,8 +95,8 @@ export default function Signup() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-                    placeholder="Enter your email"
+                    className="appearance-none block w-full px-4 py-3 bg-slate-950/80 border border-slate-800/80 rounded-xl text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                    placeholder="name@university.edu"
                   />
                 </div>
               </div>
@@ -123,7 +113,7 @@ export default function Signup() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none block w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                    className="appearance-none block w-full px-4 py-3 bg-slate-950/80 border border-slate-800/80 rounded-xl text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
                     placeholder="••••••••"
                   />
                 </div>

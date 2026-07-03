@@ -1,47 +1,40 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api } from '../services/api.ts';
-import { useAuthStore } from '../store/authStore.ts';
 import { AlertTriangle, ArrowRight, Loader } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
-  const setAuth = useAuthStore((state) => state.setAuth);
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    try {
-      const response = await api.post('/auth/login', {
-        email,
-        password,
-      });
-      const { user, accessToken } = response.data;
-      setAuth(user, accessToken);
-      navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please verify credentials.');
-    } finally {
-      setLoading(false);
-    }
+    // Mock successful login redirection in 800ms
+    setTimeout(() => {
+      if (email.includes('@') && password.length >= 6) {
+        navigate('/');
+      } else {
+        setError('Please check your email address and verify your password is at least 6 characters.');
+        setLoading(false);
+      }
+    }, 800);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative select-none">
+    <div className="min-h-screen bg-[#0b0f19] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative select-none">
+      {/* Background Decorative Blur */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <h2 className="text-center text-3xl font-extrabold text-white tracking-tight">
           Sign in to your account
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-400">
+        <p className="mt-2 text-center text-sm text-slate-450">
           Or{' '}
           <Link to="/signup" className="font-semibold text-blue-500 hover:text-blue-400 transition-colors">
             create a new placement account
@@ -50,11 +43,11 @@ export default function Login() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="bg-slate-900/80 backdrop-blur-md py-8 px-4 border border-slate-800/80 shadow-2xl rounded-2xl sm:px-10">
+        <div className="bg-slate-900/40 backdrop-blur-lg border border-slate-800/80 py-8 px-4 shadow-2xl rounded-2xl sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="rounded-xl bg-red-950/40 border border-red-900/60 p-4 flex gap-3 text-xs text-red-300">
-                <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
+                <AlertTriangle className="h-5 w-5 text-red-450 flex-shrink-0" />
                 <span>{error}</span>
               </div>
             )}
@@ -71,16 +64,19 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-                  placeholder="Enter your email"
+                  className="appearance-none block w-full px-4 py-3 bg-slate-950/80 border border-slate-800/80 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                  placeholder="name@university.edu"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Password
-              </label>
+              <div className="flex justify-between items-center">
+                <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Password
+                </label>
+                <span className="text-xs font-semibold text-blue-500 hover:text-blue-400 cursor-pointer">Forgot?</span>
+              </div>
               <div className="mt-1">
                 <input
                   id="password"
@@ -89,7 +85,7 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                  className="appearance-none block w-full px-4 py-3 bg-slate-950/80 border border-slate-800/80 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
                   placeholder="••••••••"
                 />
               </div>
