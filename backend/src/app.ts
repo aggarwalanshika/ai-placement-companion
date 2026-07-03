@@ -7,6 +7,7 @@ import { loggerMiddleware } from './middleware/logger.middleware.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
 import healthRoutes from './routes/health.routes.js';
 import authRoutes from './routes/auth.routes.js';
+import resumeRoutes from './routes/resume.routes.js';
 import { AppError } from './utils/appError.js';
 
 const app: Express = express();
@@ -28,6 +29,7 @@ app.use(loggerMiddleware);
 // Declare API Routes
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/resume', resumeRoutes);
 
 // Catch-all route to raise 404 Operational Error
 app.use((req: Request, res: Response, next: NextFunction) => {
