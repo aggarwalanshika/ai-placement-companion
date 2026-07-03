@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -61,8 +61,8 @@ model Resume {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   fileUrl    String
   atsScore   Int?
-  parsedData Json?
-  analysis   Json?
+  parsedData String?
+  analysis   String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -95,7 +95,7 @@ model InterviewSession {
   type             String
   status           String
   score            Int?
-  feedback         Json?
+  feedback         String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   messages         InterviewMessage[]
@@ -122,7 +122,7 @@ model Roadmap {
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title         String
   targetCompany String
-  steps         Json
+  steps         String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
