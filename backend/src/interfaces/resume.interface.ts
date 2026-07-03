@@ -34,4 +34,5 @@ export interface ResumeAnalysisResult {
   keywordMatch: KeywordMatch[];
   resumeSummary: string;
   projectAnalysis: ProjectAnalysisItem[];
+  resumeText?: string;
 }

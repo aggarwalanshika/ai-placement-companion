@@ -7,6 +7,7 @@ import ResumeAnalyzer from './pages/ResumeAnalyzer.tsx';
 import InterviewHub from './pages/InterviewHub.tsx';
 import DsaTracker from './pages/DsaTracker.tsx';
 import DashboardLayout from './components/DashboardLayout.tsx';
+import JobDescriptionMatcher from './pages/JobDescriptionMatcher.tsx';
 
 export default function App() {
   return (
@@ -30,6 +31,14 @@ export default function App() {
         element={
           <DashboardLayout>
             <ResumeAnalyzer />
+          </DashboardLayout>
+        }
+      />
+      <Route
+        path="/job-description-matcher"
+        element={
+          <DashboardLayout>
+            <JobDescriptionMatcher />
           </DashboardLayout>
         }
       />

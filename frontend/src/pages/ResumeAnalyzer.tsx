@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { useResumeStore } from '../store/resumeStore.js';
 import {
   Radar,
   RadarChart,
@@ -63,9 +65,13 @@ interface ResumeAnalysisResult {
   keywordMatch: KeywordComparison[];
   resumeSummary: string;
   projectAnalysis: ProjectAnalysisItem[];
+  resumeText?: string;
 }
 
 export default function ResumeAnalyzer() {
+  const navigate = useNavigate();
+  const setResumeStoreData = useResumeStore((state) => state.setResumeData);
+
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -198,6 +204,11 @@ export default function ResumeAnalyzer() {
       if (response.data && response.data.success && response.data.data) {
         setUploadState('success');
         setAnalysisResult(response.data.data);
+        
+        // Save to global Zustand store
+        const text = response.data.data.resumeText || '';
+        setResumeStoreData(text, selectedFile.name, response.data.data);
+
         setTimeout(() => {
           setAnalyzing(true);
           setCurrentStepIndex(0);
@@ -251,6 +262,11 @@ export default function ResumeAnalyzer() {
       if (response.data && response.data.success && response.data.data) {
         setUploadState('success');
         setAnalysisResult(response.data.data);
+
+        // Save to global Zustand store
+        const text = response.data.data.resumeText || '';
+        setResumeStoreData(text, mockFile.name, response.data.data);
+
         setTimeout(() => {
           setAnalyzing(true);
           setCurrentStepIndex(0);
@@ -721,6 +737,12 @@ export default function ResumeAnalyzer() {
               <div className="flex gap-4">
                 <button className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all shadow-md shadow-blue-500/10">
                   <Download className="w-3.5 h-3.5" /> Download PDF Report
+                </button>
+                <button
+                  onClick={() => navigate('/job-description-matcher')}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-xs font-bold rounded-lg text-white transition-all shadow-md shadow-blue-500/10"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse" /> Match With Job Description
                 </button>
                 <button
                   onClick={resetAnalyzer}

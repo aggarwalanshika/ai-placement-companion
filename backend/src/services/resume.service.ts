@@ -39,12 +39,15 @@ export class ResumeService {
       attempts++;
       try {
         const result = await this.callGeminiModel(textContent);
+        result.resumeText = textContent;
         return result;
       } catch (err: any) {
         logger.warn(`Gemini analysis attempt ${attempts} failed: ${err.message}`);
         if (attempts >= maxAttempts) {
           logger.error(`All Gemini attempts failed. Returning repaired/fallback schema.`);
-          return this.getFallbackReport(textContent);
+          const fallback = this.getFallbackReport(textContent);
+          fallback.resumeText = textContent;
+          return fallback;
         }
       }
     }
