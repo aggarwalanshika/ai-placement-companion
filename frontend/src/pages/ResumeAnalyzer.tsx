@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
 import {
   Radar,
   RadarChart,
@@ -26,16 +27,42 @@ import {
 
 const easeCurve = [0.16, 1, 0.3, 1] as const;
 
+interface SectionScores {
+  experience: number;
+  projects: number;
+  skills: number;
+  education: number;
+  grammar: number;
+  formatting: number;
+}
+
+interface StrengthOrWeakness {
+  title: string;
+  desc: string;
+}
+
 interface KeywordComparison {
   name: string;
   type: 'matched' | 'missing';
 }
 
-interface ProjectAnalysis {
+interface ProjectAnalysisItem {
   name: string;
   review: string;
   suggestions: string[];
   improved: string;
+}
+
+interface ResumeAnalysisResult {
+  overallScore: number;
+  sectionScores: SectionScores;
+  strengths: StrengthOrWeakness[];
+  weaknesses: StrengthOrWeakness[];
+  missingSkills: string[];
+  suggestions: string[];
+  keywordMatch: KeywordComparison[];
+  resumeSummary: string;
+  projectAnalysis: ProjectAnalysisItem[];
 }
 
 export default function ResumeAnalyzer() {
@@ -50,6 +77,8 @@ export default function ResumeAnalyzer() {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [reportReady, setReportReady] = useState(false);
 
+  // Dynamic analysis result state
+  const [analysisResult, setAnalysisResult] = useState<ResumeAnalysisResult | null>(null);
   const [animatedScore, setAnimatedScore] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,6 +93,7 @@ export default function ResumeAnalyzer() {
     'Assembling final resume intelligence scorecard...',
   ];
 
+  // Loader checkpoints timer
   useEffect(() => {
     if (analyzing) {
       const stepDuration = 600;
@@ -86,10 +116,15 @@ export default function ResumeAnalyzer() {
     }
   }, [analyzing, steps.length]);
 
+  // Score counter animation
   useEffect(() => {
-    if (reportReady) {
+    if (reportReady && analysisResult) {
       let currentVal = 0;
-      const targetVal = 87;
+      const targetVal = analysisResult.overallScore;
+      if (targetVal <= 0) {
+        setAnimatedScore(0);
+        return;
+      }
       const stepTime = Math.abs(Math.floor(800 / targetVal));
       const timer = setInterval(() => {
         currentVal += 1;
@@ -102,7 +137,7 @@ export default function ResumeAnalyzer() {
     } else {
       setAnimatedScore(0);
     }
-  }, [reportReady]);
+  }, [reportReady, analysisResult]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -114,15 +149,18 @@ export default function ResumeAnalyzer() {
     }
   };
 
-  const validateAndProcessFile = (selectedFile: File) => {
+  const validateAndProcessFile = async (selectedFile: File) => {
     setErrorMessage(null);
+    setReportReady(false);
+    setAnalysisResult(null);
+
     const validTypes = [
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/msword',
     ];
 
-    if (!validTypes.includes(selectedFile.type)) {
+    if (!validTypes.includes(selectedFile.type) && !selectedFile.name.endsWith('.pdf') && !selectedFile.name.endsWith('.docx')) {
       setUploadState('error');
       setErrorMessage('Unsupported file format. Please upload PDF or DOCX files.');
       return;
@@ -136,43 +174,97 @@ export default function ResumeAnalyzer() {
 
     setFile(selectedFile);
     setUploadState('uploading');
+    setUploadProgress(0);
 
-    let progress = 0;
-    const progressTimer = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
-      if (progress >= 100) {
-        clearInterval(progressTimer);
+    const formData = new FormData();
+    formData.append('resume', selectedFile);
+
+    try {
+      console.log('Uploading resume to backend...'); // Step 1 Console Log
+
+      const response = await axios.post('/api/resume/analyze', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          const total = progressEvent.total || selectedFile.size;
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / total);
+          setUploadProgress(percentCompleted);
+        },
+      });
+
+      console.log('Complete JSON response:', response.data); // Step 1 Console Log
+
+      if (response.data && response.data.success && response.data.data) {
         setUploadState('success');
+        setAnalysisResult(response.data.data);
         setTimeout(() => {
           setAnalyzing(true);
           setCurrentStepIndex(0);
           setCompletedSteps([]);
-        }, 600);
+        }, 800);
+      } else {
+        throw new Error('API returned malformed output.');
       }
-    }, 80);
+    } catch (err: any) {
+      console.error('File analysis error:', err);
+      const msg = err.response?.data?.message || err.message || 'Connection failed.';
+      setUploadState('error');
+      setErrorMessage(msg);
+    }
   };
 
-  const handleSimulatedUpload = () => {
+  const handleSimulatedUpload = async () => {
     setErrorMessage(null);
+    setReportReady(false);
+    setAnalysisResult(null);
     setUploadState('uploading');
     setUploadProgress(0);
-    
-    let progress = 0;
-    const progressTimer = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
-      if (progress >= 100) {
-        clearInterval(progressTimer);
+
+    // Create a client-side simulated valid mock PDF byte stream
+    const mockBlob = new Blob([
+      '%PDF-1.4\n%쏢\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << >> /MediaBox [ 0 0 612 792 ] /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 50 >>\nstream\nBT /F1 12 Tf 72 712 Td (John Doe SDE Resume. Experience: Node.js, TypeScript, React, PostgreSQL.) Tj ET\nendstream\nendobj\nxref\n0 5\ntrailer\n<< /Size 5 /Root 1 0 R >>\n%%EOF'
+    ], { type: 'application/pdf' });
+    const mockFile = new File([mockBlob], 'Software_Engineer_Resume_Mock.pdf', { type: 'application/pdf' });
+
+    setFile(mockFile);
+
+    const formData = new FormData();
+    formData.append('resume', mockFile);
+
+    try {
+      console.log('Uploading resume to backend...'); // Step 1 Console Log
+
+      const response = await axios.post('/api/resume/analyze', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          const total = progressEvent.total || mockFile.size;
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / total);
+          setUploadProgress(percentCompleted);
+        },
+      });
+
+      console.log('Complete JSON response:', response.data); // Step 1 Console Log
+
+      if (response.data && response.data.success && response.data.data) {
         setUploadState('success');
-        setFile(new File([''], 'Software_Engineer_Resume_Mock.pdf', { type: 'application/pdf' }));
+        setAnalysisResult(response.data.data);
         setTimeout(() => {
           setAnalyzing(true);
           setCurrentStepIndex(0);
           setCompletedSteps([]);
-        }, 600);
+        }, 800);
+      } else {
+        throw new Error('API returned malformed output.');
       }
-    }, 80);
+    } catch (err: any) {
+      console.error('Simulated upload error:', err);
+      const msg = err.response?.data?.message || err.message || 'Connection failed.';
+      setUploadState('error');
+      setErrorMessage(msg);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -201,84 +293,34 @@ export default function ResumeAnalyzer() {
     setReportReady(false);
     setAnalyzing(false);
     setErrorMessage(null);
+    setAnalysisResult(null);
   };
 
-  const chartData = [
-    { subject: 'Experience', score: 85 },
-    { subject: 'Projects', score: 90 },
-    { subject: 'Skills', score: 75 },
-    { subject: 'Education', score: 95 },
-    { subject: 'Grammar', score: 92 },
-    { subject: 'Formatting', score: 88 },
-  ];
+  // Build Recharts Radar data from dynamic response object
+  const getChartData = () => {
+    if (!analysisResult) return [];
+    return [
+      { subject: 'Experience', score: analysisResult.sectionScores.experience },
+      { subject: 'Projects', score: analysisResult.sectionScores.projects },
+      { subject: 'Skills', score: analysisResult.sectionScores.skills },
+      { subject: 'Education', score: analysisResult.sectionScores.education },
+      { subject: 'Grammar', score: analysisResult.sectionScores.grammar },
+      { subject: 'Formatting', score: analysisResult.sectionScores.formatting },
+    ];
+  };
 
-  const sectionScores = [
-    { name: 'Experience Score', score: 85, color: 'bg-emerald-500', text: 'text-emerald-400' },
-    { name: 'Projects Score', score: 90, color: 'bg-green-500', text: 'text-green-400' },
-    { name: 'Skills Score', score: 75, color: 'bg-yellow-500', text: 'text-yellow-400' },
-    { name: 'Education Score', score: 95, color: 'bg-blue-500', text: 'text-blue-400' },
-    { name: 'Grammar Score', score: 92, color: 'bg-indigo-500', text: 'text-indigo-400' },
-    { name: 'Formatting Score', score: 88, color: 'bg-purple-500', text: 'text-purple-400' },
-  ];
-
-  const missingSkills = ['Docker', 'Redis', 'AWS', 'System Design', 'CI/CD'];
-
-  const aiSuggestions = [
-    'Add measurable achievements (e.g. increase metrics or load speeds) in project descriptions.',
-    'Quantify SDE project impact (e.g., "reduced query latency by 45% using database caching").',
-    'Integrate missing cloud references such as S3, EC2, or Azure services.',
-    'Structure your experience descriptions using the Google-style STAR/X-Y-Z formula (Accomplished [X], as measured by [Y], by doing [Z]).',
-    'Remove passive terminology like "helped write code" or "worked on backend" and use action verbs.',
-    'Align keywords directly matching the Google/Meta entry-level SDE listing keywords.',
-    'Condense formatting to guarantee your total resume fits onto one single page.',
-    'Move tech stack descriptors to the very top section of the layout to optimize recruiter scans.',
-  ];
-
-  const keywordsList: KeywordComparison[] = [
-    { name: 'TypeScript / React', type: 'matched' },
-    { name: 'Node.js / Express', type: 'matched' },
-    { name: 'PostgreSQL', type: 'matched' },
-    { name: 'Prisma Client', type: 'matched' },
-    { name: 'Docker Containers', type: 'missing' },
-    { name: 'Redis Caching', type: 'missing' },
-    { name: 'AWS Cloud Services', type: 'missing' },
-    { name: 'CI/CD Pipelines', type: 'missing' },
-  ];
-
-  const strengths = [
-    { title: 'Excellent Projects', desc: 'Demonstrates complete full-stack project builds including database configuration schemas.' },
-    { title: 'Strong Technical Stack', desc: 'Highlights core type-safety models utilizing TypeScript, React, and server stacks.' },
-    { title: 'Good Education', desc: 'Displays academic SDE milestones and GPA credentials prominently.' },
-    { title: 'Relevant Experience', desc: 'Covers practical engineering internships or freelance project modules cleanly.' },
-  ];
-
-  const weaknesses = [
-    { title: 'Weak Action Verbs', desc: 'Relies on passive wording. Replace with "Formulated", "Engineered", or "Pioneered".' },
-    { title: 'No Metrics', desc: 'Lacks quantitative proofs. Add performance percentages or load details.' },
-    { title: 'Missing Leadership', desc: 'Does not highlight mentoring sessions, code reviews, or team coordination.' },
-    { title: 'Missing Cloud Skills', desc: 'Fails to list cloud infrastructure providers or container orchestration grids.' },
-  ];
-
-  const projectsAnalysis: ProjectAnalysis[] = [
-    {
-      name: 'E-commerce API Engine',
-      review: 'Shows strong structural database backend design, but descriptions are wordy and lack concrete latency improvements.',
-      suggestions: [
-        'Reference specific caching latency details.',
-        'Use direct active verbs like "Architected" or "Pioneered".'
-      ],
-      improved: 'Architected a scalable RESTful e-commerce API backend utilizing Node.js and PostgreSQL, decreasing endpoint response times by 35% through query optimization.',
-    },
-    {
-      name: 'Interactive Dev Portfolio',
-      review: 'Clean design and client deployment, but lacks details on CI/CD tooling or optimization frameworks.',
-      suggestions: [
-        'Highlight asset size compression details.',
-        'Document automated deployment integrations.'
-      ],
-      improved: 'Deployed an interactive developer profile page using React and Tailwind CSS, reducing asset payload bundle sizes by 40% using webpack optimization.',
-    }
-  ];
+  // Build section scores bar data from dynamic response object
+  const getSectionScores = () => {
+    if (!analysisResult) return [];
+    return [
+      { name: 'Experience Score', score: analysisResult.sectionScores.experience, color: 'bg-emerald-500', text: 'text-emerald-400' },
+      { name: 'Projects Score', score: analysisResult.sectionScores.projects, color: 'bg-green-500', text: 'text-green-400' },
+      { name: 'Skills Score', score: analysisResult.sectionScores.skills, color: 'bg-yellow-500', text: 'text-yellow-400' },
+      { name: 'Education Score', score: analysisResult.sectionScores.education, color: 'bg-blue-500', text: 'text-blue-400' },
+      { name: 'Grammar Score', score: analysisResult.sectionScores.grammar, color: 'bg-indigo-500', text: 'text-indigo-400' },
+      { name: 'Formatting Score', score: analysisResult.sectionScores.formatting, color: 'bg-purple-500', text: 'text-purple-400' },
+    ];
+  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -480,7 +522,7 @@ export default function ResumeAnalyzer() {
         )}
 
         {/* Step 4: Complete ATS Report */}
-        {reportReady && (
+        {reportReady && analysisResult && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -490,7 +532,7 @@ export default function ResumeAnalyzer() {
             {/* Top Score Banner layout */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               
-              {/* Radar Chart (Left 2 columns) */}
+              {/* Radar Chart */}
               <div className="md:col-span-2 p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl flex flex-col justify-between">
                 <div>
                   <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">ATS Breakdown</h3>
@@ -499,17 +541,17 @@ export default function ResumeAnalyzer() {
 
                 <div className="h-52 w-full pt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
+                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={getChartData()}>
                       <PolarGrid stroke="#1e293b" />
                       <PolarAngleAxis dataKey="subject" stroke="#64748b" fontSize={9} />
                       <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#334155" fontSize={8} />
-                      <Radar name="John Doe" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
+                      <Radar name="Candidate" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* Dials & Overall Score details (Right 3 columns) */}
+              {/* Dials & Overall Score details */}
               <div className="md:col-span-3 p-6 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl flex flex-col justify-between">
                 
                 {/* Gauge Row */}
@@ -522,19 +564,19 @@ export default function ResumeAnalyzer() {
                   </div>
 
                   <div>
-                    <h2 className="text-base font-bold text-white">Google SDE Compatibility</h2>
+                    <h2 className="text-base font-bold text-white">ATS SDE Compatibility</h2>
                     <span className="text-xs font-semibold text-green-400 bg-green-950/40 px-2 py-0.5 rounded border border-green-900/60 uppercase tracking-wide inline-block mt-1">
                       Ready for Review
                     </span>
                     <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
-                      Excellent structural consistency. Your projects score is outstanding, but incorporating Redis and cloud containers will finalize your target matching metrics.
+                      {analysisResult.resumeSummary || 'Resume summary parsed successfully by generative SDE filters.'}
                     </p>
                   </div>
                 </div>
 
                 {/* Subsections Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-6 border-t border-slate-900/60 mt-6">
-                  {sectionScores.map((sec, idx) => (
+                  {getSectionScores().map((sec, idx) => (
                     <div key={idx} className="space-y-1.5">
                       <div className="flex justify-between items-center text-[10px]">
                         <span className="text-slate-455 font-semibold">{sec.name}</span>
@@ -561,7 +603,7 @@ export default function ResumeAnalyzer() {
                 <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Keywords Comparison</h3>
                 
                 <div className="space-y-2">
-                  {keywordsList.map((kw, idx) => (
+                  {(analysisResult.keywordMatch || []).map((kw, idx) => (
                     <div key={idx} className="flex justify-between items-center p-3 bg-slate-950/40 border border-slate-900 rounded-lg text-xs">
                       <span className="font-semibold text-white">{kw.name}</span>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${
@@ -581,7 +623,7 @@ export default function ResumeAnalyzer() {
                 </h3>
                 
                 <ul className="space-y-3.5 text-xs text-slate-400 leading-relaxed pl-4 list-disc list-inside">
-                  {aiSuggestions.map((sug, idx) => (
+                  {(analysisResult.suggestions || []).map((sug, idx) => (
                     <li key={idx} className="marker:text-blue-500">{sug}</li>
                   ))}
                 </ul>
@@ -593,7 +635,7 @@ export default function ResumeAnalyzer() {
             <div className="p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl space-y-4">
               <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Missing Skills</h3>
               <div className="flex flex-wrap gap-2">
-                {missingSkills.map((skill, idx) => (
+                {(analysisResult.missingSkills || []).map((skill, idx) => (
                   <span key={idx} className="text-xs font-semibold px-3 py-1 bg-red-955/40 border border-red-900/50 text-red-400 rounded-lg">
                     {skill}
                   </span>
@@ -607,7 +649,7 @@ export default function ResumeAnalyzer() {
               <div className="p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl space-y-4">
                 <h3 className="text-xs font-bold text-green-400 uppercase tracking-wider">Identified Strengths</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {strengths.map((str, idx) => (
+                  {(analysisResult.strengths || []).map((str, idx) => (
                     <div key={idx} className="p-3 bg-slate-950/40 border border-slate-900 rounded-lg space-y-1">
                       <span className="text-xs font-bold text-white block">{str.title}</span>
                       <p className="text-[10px] text-slate-500 leading-relaxed">{str.desc}</p>
@@ -620,7 +662,7 @@ export default function ResumeAnalyzer() {
               <div className="p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl space-y-4">
                 <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider">Identified Weaknesses</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {weaknesses.map((wk, idx) => (
+                  {(analysisResult.weaknesses || []).map((wk, idx) => (
                     <div key={idx} className="p-3 bg-slate-950/40 border border-slate-900 rounded-lg space-y-1">
                       <span className="text-xs font-bold text-white block">{wk.title}</span>
                       <p className="text-[10px] text-slate-500 leading-relaxed">{wk.desc}</p>
@@ -635,7 +677,7 @@ export default function ResumeAnalyzer() {
               <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Projects Analysis Reports</h3>
               
               <div className="space-y-4">
-                {projectsAnalysis.map((proj, idx) => (
+                {(analysisResult.projectAnalysis || []).map((proj, idx) => (
                   <div key={idx} className="p-4 bg-slate-950/40 border border-slate-900 rounded-xl space-y-3 text-xs">
                     <div className="flex justify-between items-center border-b border-slate-900/60 pb-2">
                       <span className="font-bold text-white block">{proj.name}</span>
@@ -650,7 +692,7 @@ export default function ResumeAnalyzer() {
                         <div className="pt-2">
                           <span className="text-[9px] text-slate-500 uppercase font-bold block mb-1">Key Actionables</span>
                           <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-400">
-                            {proj.suggestions.map((s, i) => (
+                            {(proj.suggestions || []).map((s, i) => (
                               <li key={i}>{s}</li>
                             ))}
                           </ul>
@@ -666,6 +708,11 @@ export default function ResumeAnalyzer() {
                     </div>
                   </div>
                 ))}
+                {(!analysisResult.projectAnalysis || analysisResult.projectAnalysis.length === 0) && (
+                  <div className="text-slate-550 text-xs italic text-center py-4 bg-slate-950/40 rounded-lg border border-slate-900">
+                    No distinct SDE projects identified in the parsed document.
+                  </div>
+                )}
               </div>
             </div>
 

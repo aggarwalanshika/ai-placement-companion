@@ -29,6 +29,8 @@ export class ResumeService {
       throw new AppError('The uploaded resume PDF contains insufficient text or is empty.', 400);
     }
 
+    logger.info(`Extracted Resume Text Length: ${textContent.length} characters`); // Step 2 log
+
     // 2. Call Gemini with retry logic
     let attempts = 0;
     const maxAttempts = 2;
@@ -55,6 +57,8 @@ export class ResumeService {
     if (!apiKey || apiKey === 'MOCK_KEY') {
       throw new AppError('Gemini API key is not configured on the server.', 500);
     }
+
+    logger.info('Gemini API is being called (Real AI request initiated)'); // Step 2 log
 
     const model = this.genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
@@ -119,6 +123,8 @@ Ensure:
     });
 
     const responseText = response.response.text();
+    logger.info('Gemini response successfully received from Google servers'); // Step 2 log
+
     if (!responseText) {
       throw new Error('Empty response received from Gemini.');
     }
