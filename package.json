@@ -1,0 +1,22 @@
+{
+  "name": "ai-placement-companion-root",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AI Placement Companion Monorepo",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "backend:dev": "npm run dev --workspace=backend",
+    "frontend:dev": "npm run dev --workspace=frontend",
+    "install:all": "npm install",
+    "build:all": "npm run build --workspaces",
+    "lint:all": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.2.5"
+  }
+}
