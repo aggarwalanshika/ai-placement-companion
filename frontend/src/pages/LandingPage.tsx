@@ -139,7 +139,7 @@ export default function LandingPage() {
 
         <motion.div variants={itemVariants} className="flex items-center justify-center gap-3 pt-2">
           <Link
-            to="/signup"
+            to="/resume-analyzer"
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-lg shadow-blue-500/10 transition-all flex items-center gap-1.5"
           >
             Analyze Resume <ArrowRight className="w-3.5 h-3.5" />
