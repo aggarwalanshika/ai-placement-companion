@@ -3,14 +3,13 @@ import path from 'path';
 import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/appError.js';
-import { logger } from '../utils/logger.js';
 
 const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
 
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  logger.info(`Created temporary uploads directory at ${UPLOAD_DIR}`);
+  console.log(`[info]: Created temporary uploads directory at ${UPLOAD_DIR}`);
 }
 
 const storage = multer.diskStorage({

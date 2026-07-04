@@ -91,7 +91,7 @@ export default function LandingPage() {
       {/* Header */}
       <header className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between border-b border-slate-900/60 bg-[#070a13]/80 backdrop-blur-md sticky top-0">
         <span className="text-base font-bold tracking-tight text-white flex items-center gap-2">
-          🎓 AI Placement Companion
+          🤖 AI Resume Copilot
         </span>
         <div className="flex items-center gap-4">
           <Link to="/login" className="text-xs font-semibold text-slate-400 hover:text-white transition-colors">
@@ -117,16 +117,16 @@ export default function LandingPage() {
           variants={itemVariants}
           className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/40 border border-blue-900/60 text-blue-400 text-[10px] font-semibold tracking-wider uppercase mx-auto"
         >
-          <span>🚀 Smart Preparation Sandbox</span>
+          <span>🚀 Premium AI Resume Builder</span>
         </motion.div>
 
         <motion.h1
           variants={itemVariants}
           className="text-4xl md:text-6xl font-extrabold tracking-tight text-white max-w-3xl mx-auto leading-[1.1] font-sans"
         >
-          Crack Your Dream <br />
+          Build ATS-Optimized <br />
           <span className="text-blue-500 bg-gradient-to-r from-blue-400 via-indigo-400 to-indigo-500 bg-clip-text text-transparent">
-            Placement with AI
+            Resumes with AI
           </span>
         </motion.h1>
 
@@ -134,7 +134,7 @@ export default function LandingPage() {
           variants={itemVariants}
           className="text-slate-400 text-sm md:text-base max-w-xl mx-auto leading-relaxed"
         >
-          Upload your resume, practice AI interviews, analyze job descriptions, and prepare smarter—not harder.
+          Upload your resume, refactor project description bullet points, match against job descriptions, and build the perfect profile—all powered by AI.
         </motion.p>
 
         <motion.div variants={itemVariants} className="flex items-center justify-center gap-3 pt-2">
@@ -169,7 +169,7 @@ export default function LandingPage() {
               <span className="h-2.5 w-2.5 rounded-full bg-green-500/40" />
             </div>
             <div className="text-[10px] text-slate-500 font-mono bg-slate-950/80 border border-slate-900/60 px-6 py-0.5 rounded-lg">
-              ai-placement-companion.edu/dashboard
+              resume-copilot.ai/dashboard
             </div>
             <div className="w-8" />
           </div>
@@ -178,7 +178,7 @@ export default function LandingPage() {
             {/* Sidebar Mockup */}
             <aside className="w-48 border-r border-slate-900/60 p-3 space-y-4 flex-shrink-0 bg-[#080c16]/50">
               <div className="space-y-1">
-                {['Dashboard', 'Resume Analyzer', 'DSA Tracker', 'Interview Hub'].map((menu, i) => (
+                {['Dashboard', 'Resume Analyzer', 'Resume Rewriter', 'Job Matcher', 'Resume History', 'Settings'].map((menu, i) => (
                   <div
                     key={menu}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold ${
@@ -197,8 +197,8 @@ export default function LandingPage() {
               {/* Profile Bar */}
               <div className="flex justify-between items-center pb-2 border-b border-slate-900/40">
                 <div>
-                  <h4 className="text-xs font-bold text-white">Student Dashboard Preview</h4>
-                  <span className="text-[9px] text-slate-500">Google SDE Ready Profile</span>
+                  <h4 className="text-xs font-bold text-white">Resume Copilot Workspace</h4>
+                  <span className="text-[9px] text-slate-500">Active: Resume_Software_Engineer.pdf</span>
                 </div>
                 <div className="h-6 w-6 rounded-full bg-blue-600/20 border border-blue-900 flex items-center justify-center text-[9px] text-blue-400 font-bold">
                   JD
@@ -216,19 +216,19 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Interview Card */}
+                {/* Rewriter Card */}
                 <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1.5">
-                  <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">AI Interview Score</span>
-                  <div className="text-xl font-extrabold text-indigo-400">7.8 / 10</div>
-                  <span className="text-[8px] text-slate-500 block">Feedback: Fluid speech structure</span>
+                  <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">AI Resume Rewrites</span>
+                  <div className="text-xl font-extrabold text-indigo-400">3 pending</div>
+                  <span className="text-[8px] text-slate-500 block">+15% score increase potential</span>
                 </div>
 
-                {/* DSA Progress */}
+                {/* Job Match Card */}
                 <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1.5">
-                  <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">DSA solved</span>
-                  <div className="text-xl font-extrabold text-blue-400">142 problems</div>
+                  <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Job Match Score</span>
+                  <div className="text-xl font-extrabold text-blue-400">78% Match</div>
                   <div className="h-1 w-full bg-slate-950 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 w-[62%]" />
+                    <div className="h-full bg-blue-500 w-[78%]" style={{ width: '78%' }} />
                   </div>
                 </div>
               </div>

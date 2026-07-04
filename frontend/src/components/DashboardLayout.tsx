@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Code2, Video, LogOut, Bell, Menu, X, User } from 'lucide-react';
+import { LayoutDashboard, FileText, Sparkles, Briefcase, History, Settings, LogOut, Bell, Menu, X, User } from 'lucide-react';
 import { useState } from 'react';
 
 interface DashboardLayoutProps {
@@ -14,8 +14,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Resume Analyzer', href: '/resume-analyzer', icon: FileText },
-    { name: 'DSA Tracker', href: '/dsa-tracker', icon: Code2 },
-    { name: 'Interview Hub', href: '/interviews', icon: Video },
+    { name: 'Resume Rewriter', href: '/resume-rewriter', icon: Sparkles },
+    { name: 'Job Matcher', href: '/job-description-matcher', icon: Briefcase },
+    { name: 'Resume History', href: '/resume-history', icon: History },
+    { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
   const handleLogout = () => {
@@ -35,7 +37,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
           <span className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-            🎓 Placement Companion
+            🤖 Resume Copilot
           </span>
         </div>
 

@@ -4,10 +4,11 @@ import Login from './pages/Login.tsx';
 import Signup from './pages/Signup.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import ResumeAnalyzer from './pages/ResumeAnalyzer.tsx';
-import InterviewHub from './pages/InterviewHub.tsx';
-import DsaTracker from './pages/DsaTracker.tsx';
 import DashboardLayout from './components/DashboardLayout.tsx';
 import JobDescriptionMatcher from './pages/JobDescriptionMatcher.tsx';
+import ResumeHistory from './pages/ResumeHistory.tsx';
+import ResumeRewriter from './pages/ResumeRewriter.tsx';
+import Settings from './pages/Settings.tsx';
 
 export default function App() {
   return (
@@ -35,6 +36,14 @@ export default function App() {
         }
       />
       <Route
+        path="/resume-rewriter"
+        element={
+          <DashboardLayout>
+            <ResumeRewriter />
+          </DashboardLayout>
+        }
+      />
+      <Route
         path="/job-description-matcher"
         element={
           <DashboardLayout>
@@ -43,18 +52,18 @@ export default function App() {
         }
       />
       <Route
-        path="/dsa-tracker"
+        path="/resume-history"
         element={
           <DashboardLayout>
-            <DsaTracker />
+            <ResumeHistory />
           </DashboardLayout>
         }
       />
       <Route
-        path="/interviews"
+        path="/settings"
         element={
           <DashboardLayout>
-            <InterviewHub />
+            <Settings />
           </DashboardLayout>
         }
       />
