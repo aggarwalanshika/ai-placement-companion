@@ -31,7 +31,8 @@ export function cleanResumeText(text: string): string {
 }
 
 /**
- * Deep clean structured parsed sections of any garbage characters.
+ * Deep clean structured parsed sections of any garbage characters,
+ * strictly filtering out any null, undefined, or [object Object] artifacts.
  */
 export function cleanParsedSections(sections: ParsedSections): ParsedSections {
   if (!sections) {
@@ -47,32 +48,41 @@ export function cleanParsedSections(sections: ParsedSections): ParsedSections {
     };
   }
   
-  const cleanStr = (s: string) => cleanResumeText(s || '');
+  const cleanStr = (s: any): string => {
+    if (s === null || s === undefined) return '';
+    if (typeof s !== 'string') {
+      if (typeof s === 'object') return '';
+      s = String(s);
+    }
+    const val = cleanResumeText(s).trim();
+    if (val === 'undefined' || val === 'null' || val === '[object Object]') return '';
+    return val;
+  };
 
   const cleaned: ParsedSections = {
     personal: {
-      name: cleanStr(sections.personal?.name || ''),
-      email: cleanStr(sections.personal?.email || ''),
-      phone: cleanStr(sections.personal?.phone || ''),
-      links: (sections.personal?.links || []).map(cleanStr)
+      name: cleanStr(sections.personal?.name || 'Candidate Name'),
+      email: cleanStr(sections.personal?.email),
+      phone: cleanStr(sections.personal?.phone),
+      links: (sections.personal?.links || []).map(cleanStr).filter(Boolean)
     },
     experience: (sections.experience || []).map((exp) => ({
-      role: cleanStr(exp.role),
-      company: cleanStr(exp.company),
-      date: cleanStr(exp.date),
-      bullets: (exp.bullets || []).map(cleanStr)
+      role: cleanStr(exp.role || 'Role'),
+      company: cleanStr(exp.company || 'Organization'),
+      date: cleanStr(exp.date || 'Date'),
+      bullets: (exp.bullets || []).map(cleanStr).filter(Boolean)
     })),
     projects: (sections.projects || []).map((proj) => ({
-      title: cleanStr(proj.title),
-      techStack: cleanStr(proj.techStack),
-      date: cleanStr(proj.date),
-      bullets: (proj.bullets || []).map(cleanStr)
+      title: cleanStr(proj.title || 'Project Title'),
+      techStack: cleanStr(proj.techStack || 'Tech Stack'),
+      date: cleanStr(proj.date || 'Date'),
+      bullets: (proj.bullets || []).map(cleanStr).filter(Boolean)
     })),
-    skills: (sections.skills || []).map(cleanStr),
-    education: (sections.education || []).map(cleanStr),
-    achievements: (sections.achievements || []).map(cleanStr),
-    certifications: (sections.certifications || []).map(cleanStr),
-    links: (sections.links || []).map(cleanStr)
+    skills: (sections.skills || []).map(cleanStr).filter(Boolean),
+    education: (sections.education || []).map(cleanStr).filter(Boolean),
+    achievements: (sections.achievements || []).map(cleanStr).filter(Boolean),
+    certifications: (sections.certifications || []).map(cleanStr).filter(Boolean),
+    links: (sections.links || []).map(cleanStr).filter(Boolean)
   };
 
   return cleaned;
