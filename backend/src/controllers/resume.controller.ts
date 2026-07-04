@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import { resumeService } from '../services/resume.service.js';
+import { builderService } from '../services/builder.service.js';
 import { AppError } from '../utils/appError.js';
 import { logger } from '../utils/logger.js';
 
@@ -63,6 +64,75 @@ export class ResumeController {
       });
     } catch (error) {
       logger.error(`Error during rewrite controller step: ${(error as any).message}`);
+      next(error);
+    }
+  }
+
+  public static async build(req: Request, res: Response, next: NextFunction): Promise<void> {
+    logger.info('API call received: POST /api/resume/build');
+    const { originalSections, acceptedSuggestions } = req.body;
+
+    if (!originalSections || !acceptedSuggestions) {
+      return next(new AppError('Missing required parameters: originalSections and acceptedSuggestions are required.', 400));
+    }
+
+    try {
+      const merged = builderService.mergeResumeChanges(originalSections, acceptedSuggestions);
+      res.status(200).json({
+        success: true,
+        data: merged,
+      });
+    } catch (error) {
+      logger.error(`Error during build controller step: ${(error as any).message}`);
+      next(error);
+    }
+  }
+
+  public static async validate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    logger.info('API call received: POST /api/resume/validate');
+    const { resumeText, parsedSections } = req.body;
+
+    if (!resumeText || !parsedSections) {
+      return next(new AppError('Missing required parameters: resumeText and parsedSections are required.', 400));
+    }
+
+    try {
+      const result = await builderService.validateResume(resumeText, parsedSections);
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      logger.error(`Error during validate controller step: ${(error as any).message}`);
+      next(error);
+    }
+  }
+
+  public static async exportPDF(req: Request, res: Response, next: NextFunction): Promise<void> {
+    logger.info('API call received: POST /api/resume/export/pdf');
+    const { name, email, phone, links, parsedSections } = req.body;
+
+    try {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename=optimized_resume.pdf');
+      builderService.generatePDF({ name, email, phone, links, parsedSections }, res);
+    } catch (error) {
+      logger.error(`Error during PDF export controller step: ${(error as any).message}`);
+      next(error);
+    }
+  }
+
+  public static async exportDOCX(req: Request, res: Response, next: NextFunction): Promise<void> {
+    logger.info('API call received: POST /api/resume/export/docx');
+    const { name, email, phone, links, parsedSections } = req.body;
+
+    try {
+      const html = builderService.generateDOCX({ name, email, phone, links, parsedSections });
+      res.setHeader('Content-Type', 'application/msword');
+      res.setHeader('Content-Disposition', 'attachment; filename=optimized_resume.doc');
+      res.status(200).send(html);
+    } catch (error) {
+      logger.error(`Error during DOCX export controller step: ${(error as any).message}`);
       next(error);
     }
   }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useResumeStore, ParsedSections } from '../store/resumeStore.js';
@@ -9,7 +10,6 @@ import {
   Check,
   X,
   Edit2,
-  Download,
   ChevronRight,
   Info,
   FileText,
@@ -25,9 +25,9 @@ interface SuggestionState {
 }
 
 export default function ResumeRewriter() {
+  const navigate = useNavigate();
   const {
     resumeText,
-    resumeFileName,
     analysisResult,
     history,
     future,
@@ -244,84 +244,7 @@ export default function ResumeRewriter() {
     return <div className="leading-relaxed text-xs text-slate-200 mt-2 bg-slate-950/40 p-4 border border-slate-900 rounded-xl">{result}</div>;
   };
 
-  // Export templates conforming to standard SDE outlines
-  const exportResume = (type: 'pdf' | 'docx') => {
-    if (!parsedSections) return;
-    
-    if (type === 'pdf') {
-      // Direct window print opens print layout dialog
-      window.print();
-      showToast('Print dialog opened. Choose Save as PDF.');
-      return;
-    }
 
-    // Rich Word document export using inline SDE stylesheet template
-    let wordHTML = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>`;
-    wordHTML += `<head><title>${candidateName} Resume</title>`;
-    wordHTML += `<style>
-      body { font-family: 'Times New Roman', serif; font-size: 11.5pt; color: #000; line-height: 1.35; padding: 20px; }
-      h1 { text-align: center; font-size: 24pt; margin: 0 0 5px 0; font-weight: bold; text-transform: uppercase; }
-      .contact { text-align: center; font-size: 10pt; color: #333; margin-bottom: 20px; }
-      h2 { font-size: 13pt; font-weight: bold; border-bottom: 1.5px solid #000; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; padding-bottom: 2px; }
-      ul { margin-top: 2px; margin-bottom: 6px; padding-left: 20px; }
-      li { margin-bottom: 4px; }
-      .skills-box { padding-left: 5px; margin-bottom: 10px; }
-    </style></head><body>`;
-
-    wordHTML += `<h1>${candidateName}</h1>`;
-    wordHTML += `<div class="contact">${candidateEmail} &nbsp;|&nbsp; ${candidatePhone} &nbsp;|&nbsp; ${candidateLinks}</div>`;
-
-    if (parsedSections.education && parsedSections.education.length > 0) {
-      wordHTML += `<h2>Education</h2><ul>`;
-      parsedSections.education.forEach((edu: string) => {
-        wordHTML += `<li>${edu}</li>`;
-      });
-      wordHTML += `</ul>`;
-    }
-
-    if (parsedSections.skills && parsedSections.skills.length > 0) {
-      wordHTML += `<h2>Technical Skills</h2>`;
-      wordHTML += `<div class="skills-box">${parsedSections.skills.join(', ')}</div>`;
-    }
-
-    if (parsedSections.experience && parsedSections.experience.length > 0) {
-      wordHTML += `<h2>Professional Experience</h2><ul>`;
-      parsedSections.experience.forEach((exp: string) => {
-        wordHTML += `<li>${exp}</li>`;
-      });
-      wordHTML += `</ul>`;
-    }
-
-    if (parsedSections.projects && parsedSections.projects.length > 0) {
-      wordHTML += `<h2>Projects</h2><ul>`;
-      parsedSections.projects.forEach((proj: string) => {
-        wordHTML += `<li>${proj}</li>`;
-      });
-      wordHTML += `</ul>`;
-    }
-
-    if (parsedSections.achievements && parsedSections.achievements.length > 0) {
-      wordHTML += `<h2>Achievements & Extracurriculars</h2><ul>`;
-      parsedSections.achievements.forEach((ach: string) => {
-        wordHTML += `<li>${ach}</li>`;
-      });
-      wordHTML += `</ul>`;
-    }
-
-    wordHTML += `</body></html>`;
-
-    const blob = new Blob(['\ufeff' + wordHTML], { type: 'application/msword;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${resumeFileName?.replace(/\.[^/.]+$/, "") || 'Resume'}_optimized.doc`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    showToast('Rich Word document exported successfully.');
-  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10 select-none">
@@ -380,19 +303,13 @@ export default function ResumeRewriter() {
               </span>
             </div>
 
-            {/* Export buttons */}
+            {/* Transition to Preview page */}
             <div className="flex gap-2">
               <button
-                onClick={() => exportResume('pdf')}
-                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all animate-pulse"
+                onClick={() => navigate('/resume-preview')}
+                className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-650 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-xs font-bold rounded-lg text-white transition-all shadow-md shadow-blue-500/10"
               >
-                <Download className="w-3.5 h-3.5" /> Print PDF
-              </button>
-              <button
-                onClick={() => exportResume('docx')}
-                className="flex items-center gap-1 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold rounded-lg text-slate-300 transition-all"
-              >
-                Export Word
+                <Sparkles className="w-3.5 h-3.5 text-yellow-300" /> Preview & Export Resume
               </button>
             </div>
           </div>

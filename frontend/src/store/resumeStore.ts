@@ -8,10 +8,22 @@ export interface ParsedSections {
   achievements: string[];
 }
 
+export interface ResumeVersion {
+  id: string;
+  timestamp: string;
+  atsScore: number;
+  acceptedCount: number;
+  ignoredCount: number;
+  userNotes?: string;
+  parsedSections: ParsedSections;
+}
+
 interface ResumeState {
   resumeText: string | null;
   resumeFileName: string | null;
   analysisResult: any | null;
+  originalSections: ParsedSections | null;
+  versions: ResumeVersion[];
   history: Array<{ parsedSections: ParsedSections; overallScore: number }>;
   future: Array<{ parsedSections: ParsedSections; overallScore: number }>;
   
@@ -21,6 +33,9 @@ interface ResumeState {
   updateParsedSection: (section: keyof ParsedSections, index: number, newValue: string, scoreBoost?: number) => void;
   undo: () => void;
   redo: () => void;
+  
+  saveVersion: (notes?: string) => void;
+  deleteVersion: (id: string) => void;
 }
 
 // Client-side text parsing helper to split plain text into standard resume sections
@@ -85,7 +100,13 @@ function parseSectionsFromText(text: string): ParsedSections {
 // Check localStorage for persisted resume data to prevent resets on refresh
 const loadSavedState = () => {
   if (typeof window === 'undefined') {
-    return { resumeText: null, resumeFileName: null, analysisResult: null };
+    return {
+      resumeText: null,
+      resumeFileName: null,
+      analysisResult: null,
+      originalSections: null,
+      versions: [],
+    };
   }
   try {
     const saved = localStorage.getItem('resume-copilot-data');
@@ -95,12 +116,20 @@ const loadSavedState = () => {
         resumeText: parsed.resumeText || null,
         resumeFileName: parsed.resumeFileName || null,
         analysisResult: parsed.analysisResult || null,
+        originalSections: parsed.originalSections || null,
+        versions: parsed.versions || [],
       };
     }
   } catch (e) {
     console.error('Failed to load state from localStorage:', e);
   }
-  return { resumeText: null, resumeFileName: null, analysisResult: null };
+  return {
+    resumeText: null,
+    resumeFileName: null,
+    analysisResult: null,
+    originalSections: null,
+    versions: [],
+  };
 };
 
 const savedState = loadSavedState();
@@ -109,6 +138,8 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   resumeText: savedState.resumeText,
   resumeFileName: savedState.resumeFileName,
   analysisResult: savedState.analysisResult,
+  originalSections: savedState.originalSections,
+  versions: savedState.versions,
   history: [],
   future: [],
 
@@ -132,6 +163,8 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           resumeText: text,
           resumeFileName: fileName,
           analysisResult: analysisWithSections,
+          originalSections: parsed,
+          versions: [],
         })
       );
     } catch (e) {
@@ -142,6 +175,8 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       resumeText: text,
       resumeFileName: fileName,
       analysisResult: analysisWithSections,
+      originalSections: parsed,
+      versions: [],
       history: [],
       future: [],
     });
@@ -157,13 +192,15 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       resumeText: null,
       resumeFileName: null,
       analysisResult: null,
+      originalSections: null,
+      versions: [],
       history: [],
       future: [],
     });
   },
 
   updateParsedSection: (section, index, newValue, scoreBoost = 0) => {
-    const { analysisResult, history, resumeText, resumeFileName } = get();
+    const { analysisResult, history, resumeText, resumeFileName, originalSections, versions } = get();
     if (!analysisResult || !analysisResult.parsedSections) return;
 
     // 1. Capture current state for undo
@@ -200,6 +237,8 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           resumeText,
           resumeFileName,
           analysisResult: updatedAnalysis,
+          originalSections,
+          versions,
         })
       );
     } catch (e) {
@@ -214,7 +253,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   },
 
   undo: () => {
-    const { history, future, analysisResult, resumeText, resumeFileName } = get();
+    const { history, future, analysisResult, resumeText, resumeFileName, originalSections, versions } = get();
     if (history.length === 0 || !analysisResult) return;
 
     // Pop the last entry from history
@@ -240,6 +279,8 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           resumeText,
           resumeFileName,
           analysisResult: updatedAnalysis,
+          originalSections,
+          versions,
         })
       );
     } catch (e) {
@@ -254,7 +295,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   },
 
   redo: () => {
-    const { history, future, analysisResult, resumeText, resumeFileName } = get();
+    const { history, future, analysisResult, resumeText, resumeFileName, originalSections, versions } = get();
     if (future.length === 0 || !analysisResult) return;
 
     // Pop the last entry from future
@@ -280,6 +321,8 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           resumeText,
           resumeFileName,
           analysisResult: updatedAnalysis,
+          originalSections,
+          versions,
         })
       );
     } catch (e) {
@@ -290,6 +333,87 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       analysisResult: updatedAnalysis,
       history: [...history, currentState],
       future: newFuture,
+    });
+  },
+
+  saveVersion: (notes) => {
+    const { analysisResult, originalSections, versions, resumeText, resumeFileName } = get();
+    if (!analysisResult || !analysisResult.parsedSections) return;
+
+    // Calculate changes count
+    let acceptedCount = 0;
+    const orig = originalSections || { experience: [], projects: [], skills: [], education: [], achievements: [] };
+    const curr = analysisResult.parsedSections;
+
+    const countChanges = (sec: keyof ParsedSections) => {
+      const oList = orig[sec] || [];
+      const cList = curr[sec] || [];
+      cList.forEach((val: string, idx: number) => {
+        if (oList[idx] !== undefined && oList[idx] !== val) {
+          acceptedCount++;
+        }
+      });
+    };
+    countChanges('experience');
+    countChanges('projects');
+    countChanges('skills');
+
+    const totalSuggestions = 5;
+    const ignoredCount = Math.max(0, totalSuggestions - acceptedCount);
+
+    const newVersion: ResumeVersion = {
+      id: `version-${versions.length + 1}`,
+      timestamp: new Date().toLocaleString(),
+      atsScore: analysisResult.overallScore,
+      acceptedCount,
+      ignoredCount,
+      userNotes: notes || `Revision ${versions.length + 1}`,
+      parsedSections: JSON.parse(JSON.stringify(curr)),
+    };
+
+    const newVersionsList = [...versions, newVersion];
+
+    try {
+      localStorage.setItem(
+        'resume-copilot-data',
+        JSON.stringify({
+          resumeText,
+          resumeFileName,
+          analysisResult,
+          originalSections,
+          versions: newVersionsList,
+        })
+      );
+    } catch (e) {
+      console.error('Failed to persist saveVersion data:', e);
+    }
+
+    set({
+      versions: newVersionsList,
+    });
+  },
+
+  deleteVersion: (id) => {
+    const { analysisResult, originalSections, versions, resumeText, resumeFileName } = get();
+    const newVersionsList = versions.filter((v) => v.id !== id);
+
+    try {
+      localStorage.setItem(
+        'resume-copilot-data',
+        JSON.stringify({
+          resumeText,
+          resumeFileName,
+          analysisResult,
+          originalSections,
+          versions: newVersionsList,
+        })
+      );
+    } catch (e) {
+      console.error('Failed to persist deleteVersion data:', e);
+    }
+
+    set({
+      versions: newVersionsList,
     });
   },
 }));

@@ -8,6 +8,7 @@ import DashboardLayout from './components/DashboardLayout.tsx';
 import JobDescriptionMatcher from './pages/JobDescriptionMatcher.tsx';
 import ResumeHistory from './pages/ResumeHistory.tsx';
 import ResumeRewriter from './pages/ResumeRewriter.tsx';
+import ResumePreview from './pages/ResumePreview.tsx';
 import Settings from './pages/Settings.tsx';
 
 export default function App() {
@@ -64,6 +65,14 @@ export default function App() {
         element={
           <DashboardLayout>
             <Settings />
+          </DashboardLayout>
+        }
+      />
+      <Route
+        path="/resume-preview"
+        element={
+          <DashboardLayout>
+            <ResumePreview />
           </DashboardLayout>
         }
       />
