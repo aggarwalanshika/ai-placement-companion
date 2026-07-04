@@ -157,8 +157,6 @@ npm run dev
 
 # 📸 Screenshots
 
-> Add screenshots here
-
 - Landing Page
 - Dashboard
 - Resume Analyzer
