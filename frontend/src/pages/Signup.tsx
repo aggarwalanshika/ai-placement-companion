@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CheckCircle2, AlertTriangle, ArrowRight, Loader } from 'lucide-react';
+import { api } from '../services/api.ts';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ export default function Signup() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -21,13 +22,17 @@ export default function Signup() {
     }
 
     setLoading(true);
-    // Simulate signup completion
-    setTimeout(() => {
+
+    try {
+      await api.post('/auth/signup', { fullName, email, password });
       setSuccess(true);
       setTimeout(() => {
         navigate('/login');
       }, 1500);
-    }, 800);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Signup failed. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,7 +65,7 @@ export default function Signup() {
             <form className="space-y-6" onSubmit={handleSubmit}>
               {error && (
                 <div className="rounded-xl bg-red-950/40 border border-red-900/60 p-4 flex gap-3 text-xs text-red-300">
-                  <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
+                  <AlertTriangle className="h-5 w-5 text-red-450 flex-shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
@@ -78,7 +83,7 @@ export default function Signup() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="appearance-none block w-full px-4 py-3 bg-slate-950/80 border border-slate-800/80 rounded-xl text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-                    placeholder="John Doe"
+                    placeholder="Enter your name"
                   />
                 </div>
               </div>

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, Loader } from 'lucide-react';
+import { api } from '../services/api.ts';
+import { useAuthStore } from '../store/authStore.ts';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -9,25 +11,24 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    // Mock successful login redirection in 800ms
-    setTimeout(() => {
-      if (email.includes('@') && password.length >= 6) {
-        navigate('/');
-      } else {
-        setError('Please check your email address and verify your password is at least 6 characters.');
-        setLoading(false);
-      }
-    }, 800);
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      const { user, accessToken } = response.data;
+      useAuthStore.getState().setAuth(user, accessToken);
+      navigate('/');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Login failed. Please verify credentials.');
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#0b0f19] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative select-none">
-      {/* Background Decorative Blur */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
@@ -75,7 +76,6 @@ export default function Login() {
                 <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Password
                 </label>
-                <span className="text-xs font-semibold text-blue-500 hover:text-blue-400 cursor-pointer">Forgot?</span>
               </div>
               <div className="mt-1">
                 <input

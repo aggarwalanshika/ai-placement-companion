@@ -1,6 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Sparkles, Briefcase, History, Settings, LogOut, Bell, Menu, X, User } from 'lucide-react';
+import { LayoutDashboard, FileText, Sparkles, Briefcase, History, Settings, LogOut, Bell, Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { useAuthStore } from '../store/authStore.ts';
+import { api } from '../services/api.ts';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -10,6 +12,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -20,9 +24,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
-  const handleLogout = () => {
-    // Clear local states if any, then navigate to landing page
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      console.error('Logout request failed:', e);
+    }
+    clearAuth();
     navigate('/login');
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   };
 
   return (
@@ -49,10 +68,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </button>
 
           {/* User Details */}
-          <div className="hidden sm:flex items-center gap-2 bg-slate-950/60 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300">
-            <User className="w-3.5 h-3.5 text-blue-400" />
-            <span>John Doe</span>
-          </div>
+          {user && (
+            <div className="hidden sm:flex items-center gap-2 bg-slate-950/60 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300">
+              <div className="w-5 h-5 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-[10px] font-bold text-blue-400">
+                {getInitials(user.fullName)}
+              </div>
+              <span>{user.fullName}</span>
+            </div>
+          )}
 
           <button
             onClick={handleLogout}
