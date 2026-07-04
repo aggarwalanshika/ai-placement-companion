@@ -163,7 +163,6 @@ export class BuilderService {
       return issues;
     }
 
-    // Active normalize structures first
     const normOriginal = this.normalizeParsedSections(original);
     const normOptimized = this.normalizeParsedSections(optimized);
 
@@ -304,105 +303,80 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
   }
 
   /**
-   * Draw a beautifully formatted, single-page vector PDF resume using pdfkit.
-   * Aligned to clean SDE templates.
+   * PDF Builder preserving document line structures exactly and applying only bullet point modifications.
    */
   public generatePDF(resumeData: any, resStream: NodeJS.WritableStream): void {
-    logger.info('Generating PDF stream for optimized resume export...');
+    logger.info('Generating PDF stream by replacing bullet points in original resume text...');
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
     doc.pipe(resStream);
 
-    doc.fontSize(22).font('Helvetica-Bold').text(resumeData.name || 'Anonymous', { align: 'center' });
-    doc.moveDown(0.2);
+    const originalText: string = resumeData.resumeText || '';
+    if (!originalText) {
+      doc.fontSize(12).text('Empty Resume Text');
+      doc.end();
+      return;
+    }
 
-    const contactStr = `${resumeData.email || ''}  |  ${resumeData.phone || ''}  |  ${resumeData.links || ''}`;
-    doc.fontSize(9.5).font('Helvetica').fillColor('#333333').text(contactStr, { align: 'center' });
-    doc.moveDown(1.5);
+    // Build replacements map
+    const replacements = new Map<string, string>();
+    const origSections = resumeData.originalSections || {};
+    const optSections = resumeData.parsedSections || {};
 
-    const rawSections = resumeData.parsedSections || {};
-    const sections = this.normalizeParsedSections(rawSections);
-
-    const renderFlatSection = (title: string, list: string[]) => {
-      if (!list || list.length === 0) return;
-      
-      doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#111111').text(title.toUpperCase());
-      const yLine = doc.y + 2;
-      doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#cccccc').lineWidth(1).stroke();
-      doc.moveDown(0.8);
-
-      doc.fontSize(10).font('Helvetica').fillColor('#222222');
-      if (title.toLowerCase() === 'technical skills' || title.toLowerCase() === 'skills') {
-        doc.text(list.join(', '), { align: 'left', lineGap: 3 });
-      } else {
-        list.forEach((item) => {
-          doc.text('•  ' + item.trim(), { align: 'left', lineGap: 3, paragraphGap: 4, indent: 12 });
-        });
-      }
-      doc.moveDown(1.2);
+    const buildReplacements = (origList: any[], optList: any[]) => {
+      if (!origList || !optList) return;
+      origList.forEach((origEntry, eIdx) => {
+        const optEntry = optList[eIdx];
+        if (origEntry && optEntry && Array.isArray(origEntry.bullets) && Array.isArray(optEntry.bullets)) {
+          origEntry.bullets.forEach((origBullet: string, bIdx: number) => {
+            const optBullet = optEntry.bullets[bIdx];
+            if (origBullet && optBullet && origBullet.trim() !== optBullet.trim()) {
+              replacements.set(origBullet.trim().toLowerCase(), optBullet.trim());
+            }
+          });
+        }
+      });
     };
 
-    // Render Education
-    renderFlatSection('Education', sections.education);
+    buildReplacements(origSections.experience, optSections.experience);
+    buildReplacements(origSections.projects, optSections.projects);
 
-    // Render Skills
-    renderFlatSection('Technical Skills', sections.skills);
+    doc.fontSize(10).font('Helvetica').fillColor('#111111');
+    const lines = originalText.split('\n');
+    
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) {
+        doc.moveDown(0.3);
+        return;
+      }
 
-    // Render Experience (Structured)
-    if (sections.experience && sections.experience.length > 0) {
-      doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#111111').text('PROFESSIONAL EXPERIENCE');
-      const yLine = doc.y + 2;
-      doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#cccccc').lineWidth(1).stroke();
-      doc.moveDown(0.8);
+      const cleanLine = trimmed.replace(/^[•\-\*]\s*/, '').trim().toLowerCase();
+      let textToPrint = line;
+      let isReplaced = false;
 
-      sections.experience.forEach((exp: any) => {
-        const role = exp.role || 'Role';
-        const company = exp.company || 'Organization';
-        const date = exp.date || 'Date';
+      if (replacements.has(cleanLine)) {
+        const replacement = replacements.get(cleanLine)!;
+        const bulletMatch = line.match(/^\s*([•\-\*]\s*)/);
+        const bulletMarker = bulletMatch ? bulletMatch[1] : '• ';
+        textToPrint = `${bulletMarker}${replacement}`;
+        isReplaced = true;
+      }
 
-        doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#000000');
-        doc.text(`${role}  |  ${company}  |  ${date}`, { align: 'left', lineGap: 2 });
-        doc.moveDown(0.2);
-
-        doc.fontSize(10).font('Helvetica').fillColor('#222222');
-        if (exp.bullets && Array.isArray(exp.bullets)) {
-          exp.bullets.forEach((bullet: string) => {
-            doc.text('•  ' + bullet.trim(), { align: 'left', lineGap: 3, paragraphGap: 4, indent: 12 });
-          });
+      const isHeader = /^(education|experience|professional experience|projects|personal projects|technical skills|skills|achievements|activities|declaration)/i.test(trimmed);
+      if (isHeader) {
+        doc.moveDown(0.5);
+        doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#111111').text(textToPrint.toUpperCase());
+        const yLine = doc.y + 2;
+        doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#cccccc').lineWidth(1).stroke();
+        doc.moveDown(0.5);
+      } else {
+        if (isReplaced) {
+          doc.fontSize(10).font('Helvetica-Oblique').fillColor('#1b365d').text(textToPrint, { lineGap: 2.5 });
+        } else {
+          doc.fontSize(9.5).font('Helvetica').fillColor('#222222').text(textToPrint, { lineGap: 2.5 });
         }
-        doc.moveDown(0.6);
-      });
-      doc.moveDown(0.6);
-    }
-
-    // Render Projects (Structured)
-    if (sections.projects && sections.projects.length > 0) {
-      doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#111111').text('PROJECTS');
-      const yLine = doc.y + 2;
-      doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#cccccc').lineWidth(1).stroke();
-      doc.moveDown(0.8);
-
-      sections.projects.forEach((proj: any) => {
-        const title = proj.title || 'Project Title';
-        const techStack = proj.techStack || 'Tech Stack';
-        const date = proj.date || 'Date';
-
-        doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#000000');
-        doc.text(`${title}  |  ${techStack}  |  ${date}`, { align: 'left', lineGap: 2 });
-        doc.moveDown(0.2);
-
-        doc.fontSize(10).font('Helvetica').fillColor('#222222');
-        if (proj.bullets && Array.isArray(proj.bullets)) {
-          proj.bullets.forEach((bullet: string) => {
-            doc.text('•  ' + bullet.trim(), { align: 'left', lineGap: 3, paragraphGap: 4, indent: 12 });
-          });
-        }
-        doc.moveDown(0.6);
-      });
-      doc.moveDown(0.6);
-    }
-
-    // Render Achievements
-    renderFlatSection('Achievements & Activities', sections.achievements);
+      }
+    });
 
     doc.end();
   }
@@ -411,77 +385,73 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
    * Generate Microsoft Word compatible doc HTML payload preserving spacing, bullets, and margins.
    */
   public generateDOCX(resumeData: any): string {
-    logger.info('Generating DOCX HTML format payload...');
+    logger.info('Generating DOCX HTML format payload from original resume text...');
+    
+    const originalText: string = resumeData.resumeText || '';
+    
     let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>`;
     html += `<head><title>${resumeData.name || 'Resume'}</title>`;
     html += `<style>
-      body { font-family: 'Times New Roman', serif; font-size: 11.5pt; color: #000000; line-height: 1.35; margin: 50px; }
-      h1 { text-align: center; font-size: 22pt; font-weight: bold; margin: 0 0 5px 0; text-transform: uppercase; }
-      .contact { text-align: center; font-size: 10pt; color: #444444; margin-bottom: 20px; }
-      h2 { font-size: 13pt; font-weight: bold; border-bottom: 1.5px solid #000000; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; padding-bottom: 2px; }
-      ul { margin-top: 3px; margin-bottom: 6px; padding-left: 20px; }
-      li { margin-bottom: 4px; }
+      body { font-family: 'Times New Roman', serif; font-size: 11pt; color: #000000; line-height: 1.35; margin: 50px; }
+      .header-title { font-size: 13pt; font-weight: bold; border-bottom: 1.5px solid #000000; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; padding-bottom: 2px; }
+      .replaced-bullet { color: #1b365d; font-style: italic; font-weight: bold; }
+      p { margin: 0 0 4px 0; }
     </style></head><body>`;
 
-    html += `<h1>${resumeData.name || 'Anonymous'}</h1>`;
-    html += `<div class="contact">${resumeData.email || ''} | ${resumeData.phone || ''} | ${resumeData.links || ''}</div>`;
+    // Build replacements map
+    const replacements = new Map<string, string>();
+    const origSections = resumeData.originalSections || {};
+    const optSections = resumeData.parsedSections || {};
 
-    const rawSections = resumeData.parsedSections || {};
-    const sections = this.normalizeParsedSections(rawSections);
-
-    if (sections.education && sections.education.length > 0) {
-      html += `<h2>Education</h2><ul>`;
-      sections.education.forEach((edu: string) => {
-        html += `<li>${edu}</li>`;
-      });
-      html += `</ul>`;
-    }
-
-    if (sections.skills && sections.skills.length > 0) {
-      html += `<h2>Technical Skills</h2><div style="padding-left: 5px;">${sections.skills.join(', ')}</div>`;
-    }
-
-    if (sections.experience && sections.experience.length > 0) {
-      html += `<h2>Professional Experience</h2>`;
-      sections.experience.forEach((exp: any) => {
-        const role = exp.role || 'Role';
-        const company = exp.company || 'Organization';
-        const date = exp.date || 'Date';
-        
-        html += `<div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #000000;">${role} &nbsp;|&nbsp; ${company} &nbsp;|&nbsp; ${date}</div><ul>`;
-        if (exp.bullets && Array.isArray(exp.bullets)) {
-          exp.bullets.forEach((bullet: string) => {
-            html += `<li>${bullet}</li>`;
+    const buildReplacements = (origList: any[], optList: any[]) => {
+      if (!origList || !optList) return;
+      origList.forEach((origEntry, eIdx) => {
+        const optEntry = optList[eIdx];
+        if (origEntry && optEntry && Array.isArray(origEntry.bullets) && Array.isArray(optEntry.bullets)) {
+          origEntry.bullets.forEach((origBullet: string, bIdx: number) => {
+            const optBullet = optEntry.bullets[bIdx];
+            if (origBullet && optBullet && origBullet.trim() !== optBullet.trim()) {
+              replacements.set(origBullet.trim().toLowerCase(), optBullet.trim());
+            }
           });
         }
-        html += `</ul>`;
       });
-    }
+    };
 
-    if (sections.projects && sections.projects.length > 0) {
-      html += `<h2>Projects</h2>`;
-      sections.projects.forEach((proj: any) => {
-        const title = proj.title || 'Project Title';
-        const techStack = proj.techStack || 'Tech Stack';
-        const date = proj.date || 'Date';
+    buildReplacements(origSections.experience, optSections.experience);
+    buildReplacements(origSections.projects, optSections.projects);
 
-        html += `<div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #000000;">${title} &nbsp;|&nbsp; ${techStack} &nbsp;|&nbsp; ${date}</div><ul>`;
-        if (proj.bullets && Array.isArray(proj.bullets)) {
-          proj.bullets.forEach((bullet: string) => {
-            html += `<li>${bullet}</li>`;
-          });
+    const lines = originalText.split('\n');
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) {
+        html += `<p>&nbsp;</p>`;
+        return;
+      }
+
+      const cleanLine = trimmed.replace(/^[•\-\*]\s*/, '').trim().toLowerCase();
+      let textToPrint = line;
+      let isReplaced = false;
+
+      if (replacements.has(cleanLine)) {
+        const replacement = replacements.get(cleanLine)!;
+        const bulletMatch = line.match(/^\s*([•\-\*]\s*)/);
+        const bulletMarker = bulletMatch ? bulletMatch[1] : '• ';
+        textToPrint = `${bulletMarker}${replacement}`;
+        isReplaced = true;
+      }
+
+      const isHeader = /^(education|experience|professional experience|projects|personal projects|technical skills|skills|achievements|activities|declaration)/i.test(trimmed);
+      if (isHeader) {
+        html += `<div class="header-title">${textToPrint.toUpperCase()}</div>`;
+      } else {
+        if (isReplaced) {
+          html += `<p class="replaced-bullet">${textToPrint}</p>`;
+        } else {
+          html += `<p>${textToPrint}</p>`;
         }
-        html += `</ul>`;
-      });
-    }
-
-    if (sections.achievements && sections.achievements.length > 0) {
-      html += `<h2>Achievements & Activities</h2><ul>`;
-      sections.achievements.forEach((ach: string) => {
-        html += `<li>${ach}</li>`;
-      });
-      html += `</ul>`;
-    }
+      }
+    });
 
     html += `</body></html>`;
     return html;
