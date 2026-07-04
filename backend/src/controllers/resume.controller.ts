@@ -122,7 +122,7 @@ export class ResumeController {
 
   public static async exportPDF(req: Request, res: Response, next: NextFunction): Promise<void> {
     logger.info('API call received: POST /api/resume/export/pdf');
-    const { name, email, phone, links, parsedSections, originalSections } = req.body;
+    const { name, email, phone, links, parsedSections, originalSections, resumeText } = req.body;
 
     try {
       if (originalSections) {
@@ -140,7 +140,7 @@ export class ResumeController {
 
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename=optimized_resume.pdf');
-      builderService.generatePDF({ name, email, phone, links, parsedSections }, res);
+      builderService.generatePDF({ name, email, phone, links, parsedSections, originalSections, resumeText }, res);
     } catch (error) {
       logger.error(`Error during PDF export controller step: ${(error as any).message}`);
       next(error);
@@ -149,7 +149,7 @@ export class ResumeController {
 
   public static async exportDOCX(req: Request, res: Response, next: NextFunction): Promise<void> {
     logger.info('API call received: POST /api/resume/export/docx');
-    const { name, email, phone, links, parsedSections, originalSections } = req.body;
+    const { name, email, phone, links, parsedSections, originalSections, resumeText } = req.body;
 
     try {
       if (originalSections) {
@@ -165,7 +165,7 @@ export class ResumeController {
         }
       }
 
-      const html = builderService.generateDOCX({ name, email, phone, links, parsedSections });
+      const html = builderService.generateDOCX({ name, email, phone, links, parsedSections, originalSections, resumeText });
       res.setHeader('Content-Type', 'application/msword');
       res.setHeader('Content-Disposition', 'attachment; filename=optimized_resume.doc');
       res.status(200).send(html);

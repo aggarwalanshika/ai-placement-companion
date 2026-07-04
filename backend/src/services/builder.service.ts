@@ -303,6 +303,69 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
   }
 
   /**
+   * Reconstruct a clean plain-text resume layout from parsed sections when original text is absent.
+   */
+  private reconstructTextFromParsed(resumeData: any): string {
+    let text = '';
+    
+    if (resumeData.name) {
+      text += `${resumeData.name}\n`;
+    }
+    const contactParts = [resumeData.email, resumeData.phone, resumeData.links].filter(Boolean);
+    if (contactParts.length > 0) {
+      text += `${contactParts.join('  |  ')}\n`;
+    }
+    text += '\n';
+
+    const sections = resumeData.parsedSections || {};
+
+    if (sections.education && sections.education.length > 0) {
+      text += 'EDUCATION\n';
+      sections.education.forEach((edu: string) => { text += `${edu}\n`; });
+      text += '\n';
+    }
+
+    if (sections.skills && sections.skills.length > 0) {
+      text += 'TECHNICAL SKILLS\n';
+      text += `${sections.skills.join(', ')}\n\n`;
+    }
+
+    if (sections.experience && sections.experience.length > 0) {
+      text += 'EXPERIENCE\n';
+      sections.experience.forEach((exp: any) => {
+        text += `${exp.role}\n`;
+        text += `${exp.company}\n`;
+        text += `${exp.date}\n`;
+        if (exp.bullets) {
+          exp.bullets.forEach((b: string) => { text += `• ${b}\n`; });
+        }
+        text += '\n';
+      });
+    }
+
+    if (sections.projects && sections.projects.length > 0) {
+      text += 'PROJECTS\n';
+      sections.projects.forEach((proj: any) => {
+        text += `${proj.title}\n`;
+        text += `${proj.techStack}\n`;
+        text += `${proj.date}\n`;
+        if (proj.bullets) {
+          proj.bullets.forEach((b: string) => { text += `• ${b}\n`; });
+        }
+        text += '\n';
+      });
+    }
+
+    if (sections.achievements && sections.achievements.length > 0) {
+      text += 'ACHIEVEMENTS\n';
+      sections.achievements.forEach((ach: string) => { text += `${ach}\n`; });
+      text += '\n';
+    }
+
+    return text;
+  }
+
+  /**
    * PDF Builder preserving document line structures exactly and applying only bullet point modifications.
    */
   public generatePDF(resumeData: any, resStream: NodeJS.WritableStream): void {
@@ -310,11 +373,10 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
     doc.pipe(resStream);
 
-    const originalText: string = resumeData.resumeText || '';
+    let originalText: string = resumeData.resumeText || '';
     if (!originalText) {
-      doc.fontSize(12).text('Empty Resume Text');
-      doc.end();
-      return;
+      logger.info('resumeText is empty. Reconstructing text layout from parsedSections...');
+      originalText = this.reconstructTextFromParsed(resumeData);
     }
 
     // Build replacements map
@@ -387,7 +449,11 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
   public generateDOCX(resumeData: any): string {
     logger.info('Generating DOCX HTML format payload from original resume text...');
     
-    const originalText: string = resumeData.resumeText || '';
+    let originalText: string = resumeData.resumeText || '';
+    if (!originalText) {
+      logger.info('resumeText is empty. Reconstructing text layout from parsedSections...');
+      originalText = this.reconstructTextFromParsed(resumeData);
+    }
     
     let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>`;
     html += `<head><title>${resumeData.name || 'Resume'}</title>`;

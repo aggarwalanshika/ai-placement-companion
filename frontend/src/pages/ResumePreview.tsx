@@ -264,6 +264,7 @@ export default function ResumePreview() {
           links: candidateLinks,
           parsedSections: currentSections,
           originalSections: original,
+          resumeText: resumeText || '',
         },
         { responseType: 'blob' }
       );
@@ -309,6 +310,7 @@ export default function ResumePreview() {
           links: candidateLinks,
           parsedSections: currentSections,
           originalSections: original,
+          resumeText: resumeText || '',
         },
         { responseType: 'blob' }
       );
