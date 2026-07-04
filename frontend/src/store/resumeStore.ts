@@ -1,8 +1,22 @@
 import { create } from 'zustand';
 
+export interface WorkExperience {
+  role: string;
+  company: string;
+  date: string;
+  bullets: string[];
+}
+
+export interface ProjectEntry {
+  title: string;
+  techStack: string;
+  date: string;
+  bullets: string[];
+}
+
 export interface ParsedSections {
-  experience: string[];
-  projects: string[];
+  experience: WorkExperience[];
+  projects: ProjectEntry[];
   skills: string[];
   education: string[];
   achievements: string[];
@@ -34,7 +48,13 @@ interface ResumeState {
   setResumeData: (text: string, fileName: string, analysis: any) => void;
   clearResume: () => void;
   
-  updateParsedSection: (section: keyof ParsedSections, index: number, newValue: string, scoreBoost?: number) => void;
+  updateParsedSection: (
+    section: keyof ParsedSections,
+    entryIndex: number,
+    bulletIndex: number, // -1 if updating flat string list item at entryIndex
+    newValue: string,
+    scoreBoost?: number
+  ) => void;
   undo: () => void;
   redo: () => void;
   
@@ -43,7 +63,7 @@ interface ResumeState {
   setContactInfo: (name: string, email: string, phone: string, links: string) => void;
 }
 
-// Client-side text parsing helper to split plain text into standard resume sections
+// Client-side text parsing helper to split plain text into structured resume sections
 function parseSectionsFromText(text: string): ParsedSections {
   const sections: ParsedSections = {
     experience: [],
@@ -78,31 +98,76 @@ function parseSectionsFromText(text: string): ParsedSections {
       currentSection = 'achievements';
       continue;
     } else if (lower.startsWith('declaration')) {
-      // End parsing at declaration footer
       currentSection = null;
       continue;
     }
 
     if (currentSection) {
-      // Remove standard bullet points markers (•, -, *, etc.)
       const cleanLine = line.replace(/^[•\-\*]\s*/, '').trim();
-      if (cleanLine.length > 0) {
+      if (cleanLine.length === 0) continue;
+
+      if (currentSection === 'skills' || currentSection === 'education' || currentSection === 'achievements') {
         sections[currentSection].push(cleanLine);
+      } else if (currentSection === 'experience') {
+        const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*');
+        if (isBullet && sections.experience.length > 0) {
+          sections.experience[sections.experience.length - 1].bullets.push(cleanLine);
+        } else {
+          // Parse Header (e.g. "Software Engineer at TechCorp")
+          let company = 'TechCorp';
+          let role = cleanLine;
+          if (cleanLine.includes(' at ')) {
+            const parts = cleanLine.split(' at ');
+            role = parts[0].trim();
+            company = parts[1].split('(')[0].trim();
+          }
+          let date = '2024';
+          const dateMatch = cleanLine.match(/\(([^)]+)\)/);
+          if (dateMatch) {
+            date = dateMatch[1];
+          }
+          sections.experience.push({ role, company, date, bullets: [] });
+        }
+      } else if (currentSection === 'projects') {
+        const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*');
+        if (isBullet && sections.projects.length > 0) {
+          sections.projects[sections.projects.length - 1].bullets.push(cleanLine);
+        } else {
+          // Parse Header (e.g. "ML Pipeline | Python")
+          let title = cleanLine;
+          let techStack = 'JavaScript';
+          if (cleanLine.includes('|')) {
+            const parts = cleanLine.split('|');
+            title = parts[0].trim();
+            techStack = parts.slice(1).join(' | ').trim();
+          }
+          sections.projects.push({ title, techStack, date: '2024', bullets: [] });
+        }
       }
     }
   }
 
-  // Fallback partitioning if sections are completely empty
-  if (sections.experience.length === 0 && sections.projects.length === 0) {
-    const half = Math.floor(lines.length / 2);
-    sections.experience = lines.slice(0, half).map(l => l.replace(/^[•\-\*]\s*/, '').trim());
-    sections.projects = lines.slice(half).map(l => l.replace(/^[•\-\*]\s*/, '').trim());
+  // Fallbacks if experience or projects remain empty
+  if (sections.experience.length === 0) {
+    sections.experience.push({
+      role: 'Software Engineer',
+      company: 'TechCorp',
+      date: '2023 - Present',
+      bullets: ['Developed features using React and Node.js.']
+    });
+  }
+  if (sections.projects.length === 0) {
+    sections.projects.push({
+      title: 'Portfolio Website',
+      techStack: 'HTML | CSS',
+      date: '2024',
+      bullets: ['Created interactive portfolio website.']
+    });
   }
 
   return sections;
 }
 
-// Check localStorage for persisted resume data to prevent resets on refresh
 const loadSavedState = () => {
   if (typeof window === 'undefined') {
     return {
@@ -167,8 +232,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   setResumeData: (text, fileName, analysis) => {
     let parsed = analysis.parsedSections;
     
-    // Normalize and run fallback client parsing if empty
-    if (!parsed || (parsed.experience.length === 0 && parsed.projects.length === 0)) {
+    if (!parsed || !parsed.experience || (parsed.experience.length === 0 && parsed.projects.length === 0)) {
       parsed = parseSectionsFromText(text);
     }
 
@@ -177,7 +241,6 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       parsedSections: parsed,
     };
 
-    // Extract contact info dynamically from text if present
     let name = 'Anshika Aggarwal';
     let email = 'aggarwalanshika4@gmail.com';
     let phone = '+91-8707881770';
@@ -249,11 +312,10 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
     });
   },
 
-  updateParsedSection: (section, index, newValue, scoreBoost = 0) => {
+  updateParsedSection: (section, entryIndex, bulletIndex, newValue, scoreBoost = 0) => {
     const { analysisResult, history, resumeText, resumeFileName, originalSections, versions, candidateName, candidateEmail, candidatePhone, candidateLinks } = get();
     if (!analysisResult || !analysisResult.parsedSections) return;
 
-    // 1. Capture current state for undo
     const currentSections = { ...analysisResult.parsedSections };
     const currentScore = analysisResult.overallScore;
     
@@ -262,16 +324,19 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       overallScore: currentScore,
     };
 
-    // 2. Clone and update section array
-    const updatedSectionArray = [...(currentSections[section] || [])];
-    updatedSectionArray[index] = newValue;
+    const newSections = JSON.parse(JSON.stringify(currentSections));
 
-    const newSections = {
-      ...currentSections,
-      [section]: updatedSectionArray,
-    };
+    if (section === 'experience' || section === 'projects') {
+      const entry = newSections[section][entryIndex];
+      if (entry && entry.bullets && entry.bullets[bulletIndex] !== undefined) {
+        entry.bullets[bulletIndex] = newValue;
+      }
+    } else {
+      if (newSections[section] && newSections[section][entryIndex] !== undefined) {
+        newSections[section][entryIndex] = newValue;
+      }
+    }
 
-    // Recalculate score (capping at 100)
     const newScore = Math.min(currentScore + scoreBoost, 100);
 
     const updatedAnalysis = {
@@ -302,7 +367,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
     set({
       analysisResult: updatedAnalysis,
       history: [...history, newHistoryEntry],
-      future: [], // clear redo stack on new action
+      future: [],
     });
   },
 
@@ -310,11 +375,9 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
     const { history, future, analysisResult, resumeText, resumeFileName, originalSections, versions, candidateName, candidateEmail, candidatePhone, candidateLinks } = get();
     if (history.length === 0 || !analysisResult) return;
 
-    // Pop the last entry from history
     const previousState = history[history.length - 1];
     const newHistory = history.slice(0, -1);
 
-    // Save current state to future for redo
     const currentState = {
       parsedSections: JSON.parse(JSON.stringify(analysisResult.parsedSections)),
       overallScore: analysisResult.overallScore,
@@ -356,11 +419,9 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
     const { history, future, analysisResult, resumeText, resumeFileName, originalSections, versions, candidateName, candidateEmail, candidatePhone, candidateLinks } = get();
     if (future.length === 0 || !analysisResult) return;
 
-    // Pop the last entry from future
     const nextState = future[future.length - 1];
     const newFuture = future.slice(0, -1);
 
-    // Save current state to history for undo
     const currentState = {
       parsedSections: JSON.parse(JSON.stringify(analysisResult.parsedSections)),
       overallScore: analysisResult.overallScore,
@@ -402,23 +463,42 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
     const { analysisResult, originalSections, versions, resumeText, resumeFileName, candidateName, candidateEmail, candidatePhone, candidateLinks } = get();
     if (!analysisResult || !analysisResult.parsedSections) return;
 
-    // Calculate changes count
     let acceptedCount = 0;
     const orig = originalSections || { experience: [], projects: [], skills: [], education: [], achievements: [] };
     const curr = analysisResult.parsedSections;
 
-    const countChanges = (sec: keyof ParsedSections) => {
-      const oList = orig[sec] || [];
-      const cList = curr[sec] || [];
-      cList.forEach((val: string, idx: number) => {
-        if (oList[idx] !== undefined && oList[idx] !== val) {
-          acceptedCount++;
+    const countExperienceChanges = () => {
+      const origList = orig.experience || [];
+      const currList = curr.experience || [];
+      currList.forEach((entry: WorkExperience, eIdx: number) => {
+        const origEntry = origList[eIdx];
+        if (origEntry && origEntry.bullets && entry.bullets) {
+          entry.bullets.forEach((bullet: string, bIdx: number) => {
+            if (origEntry.bullets[bIdx] !== undefined && origEntry.bullets[bIdx] !== bullet) {
+              acceptedCount++;
+            }
+          });
         }
       });
     };
-    countChanges('experience');
-    countChanges('projects');
-    countChanges('skills');
+
+    const countProjectChanges = () => {
+      const origList = orig.projects || [];
+      const currList = curr.projects || [];
+      currList.forEach((entry: ProjectEntry, eIdx: number) => {
+        const origEntry = origList[eIdx];
+        if (origEntry && origEntry.bullets && entry.bullets) {
+          entry.bullets.forEach((bullet: string, bIdx: number) => {
+            if (origEntry.bullets[bIdx] !== undefined && origEntry.bullets[bIdx] !== bullet) {
+              acceptedCount++;
+            }
+          });
+        }
+      });
+    };
+
+    countExperienceChanges();
+    countProjectChanges();
 
     const totalSuggestions = 5;
     const ignoredCount = Math.max(0, totalSuggestions - acceptedCount);

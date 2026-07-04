@@ -110,8 +110,22 @@ JSON Schema:
     }
   ],
   "parsedSections": {
-    "experience": ["string (individual experience bullet points or descriptive sentences)"],
-    "projects": ["string (individual project descriptions/bullet points)"],
+    "experience": [
+      {
+        "role": "string (job title/role)",
+        "company": "string (organization name)",
+        "date": "string (timeline dates e.g. May 2025 - Nov 2025)",
+        "bullets": ["string (quantifiable achievement bullet point)"]
+      }
+    ],
+    "projects": [
+      {
+        "title": "string (project title)",
+        "techStack": "string (technologies used e.g. React, Node.js)",
+        "date": "string (timeline date)",
+        "bullets": ["string (quantifiable achievement bullet point)"]
+      }
+    ],
     "skills": ["string (individual technical skills parsed)"],
     "education": ["string (education program details)"],
     "achievements": ["string (any achievements, hackathons, or coordinator roles found)"]
@@ -231,12 +245,32 @@ Ensure:
       ],
       parsedSections: {
         experience: [
-          'Creative and Permissions Coordinator, μCR JIIT Noida (May 2025 - Nov 2025)',
-          'Coordinated permissions, managed creative planning, and supported execution of events.'
+          {
+            role: 'Creative and Permissions Coordinator',
+            company: 'μCR JIIT Noida',
+            date: 'May 2025 - Nov 2025',
+            bullets: [
+              'Coordinated permissions, managed creative planning, and supported execution of events.'
+            ]
+          }
         ],
         projects: [
-          'Built a machine learning pipeline to predict student dropout risk using academic data.',
-          'Developed a backend system for flight scheduling using graphs, trees, and hash tables.'
+          {
+            title: 'College Dropout Prediction System',
+            techStack: 'Python | Machine Learning',
+            date: 'April 2024',
+            bullets: [
+              'Built a machine learning pipeline to predict student dropout risk using academic data.'
+            ]
+          },
+          {
+            title: 'Flight Management System',
+            techStack: 'C++ | Data Structures',
+            date: 'Nov 2024',
+            bullets: [
+              'Developed a backend system for flight scheduling using graphs, trees, and hash tables.'
+            ]
+          }
         ],
         skills: ['C++', 'Python', 'Data Structures', 'Algorithms', 'DBMS', 'SQL', 'HTML', 'CSS', 'JavaScript'],
         education: ['B.Tech in Computer Science (CGPA: 9/10), JIIT Noida', 'Senior Secondary (ISC) - 96.8%', 'Matriculation (ICSE) - 97.2%'],

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { useResumeStore, ParsedSections } from '../store/resumeStore.js';
+import { useResumeStore, ParsedSections, WorkExperience, ProjectEntry } from '../store/resumeStore.js';
 import {
   Sparkles,
   ArrowRight,
@@ -94,45 +94,96 @@ export default function ResumePreview() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Local metadata validation check
+  // Local metadata validation check matching builder.service.ts
   const validateResumeStructure = (orig: ParsedSections, opt: ParsedSections): string[] => {
     const issues: string[] = [];
     if (!opt || !orig) return ['Resume sections are missing.'];
 
-    const checkHeaders = (sec: keyof ParsedSections, label: string) => {
-      const origList = orig[sec] || [];
-      const optList = opt[sec] || [];
-      origList.forEach((line) => {
-        const trimmed = line.trim();
-        const isHeader = trimmed.length > 0 &&
-                         !trimmed.startsWith('•') &&
-                         !trimmed.startsWith('-') &&
-                         !trimmed.startsWith('*');
-        if (isHeader) {
-          const cleanLine = trimmed.toLowerCase();
-          const found = optList.some(optLine => optLine.toLowerCase().includes(cleanLine) || cleanLine.includes(optLine.toLowerCase()));
-          if (!found) {
-            issues.push(`Preservation error: ${label} header "${trimmed}" is missing.`);
-          }
-        }
-      });
+    const checkMatch = (origVal: string, optVal: string, label: string) => {
+      const o = (origVal || '').trim().toLowerCase();
+      const p = (optVal || '').trim().toLowerCase();
+      if (o && !p.includes(o) && !o.includes(p)) {
+        issues.push(`Preservation failed: ${label} ("${origVal}") was altered or removed.`);
+      }
     };
 
-    checkHeaders('experience', 'Experience');
-    checkHeaders('projects', 'Projects');
-    checkHeaders('education', 'Education');
-    checkHeaders('achievements', 'Achievements');
+    // 1. Validate Experience metadata (role, company, date)
+    const origExp = orig.experience || [];
+    const optExp = opt.experience || [];
+    origExp.forEach((origEntry, idx) => {
+      const optEntry = optExp[idx];
+      if (!optEntry) {
+        issues.push(`Preservation failed: Work experience entry at index ${idx + 1} was removed.`);
+      } else {
+        checkMatch(origEntry.role, optEntry.role, `Experience role`);
+        checkMatch(origEntry.company, optEntry.company, `Experience organization`);
+        checkMatch(origEntry.date, optEntry.date, `Experience dates`);
+      }
+    });
 
-    // Check Dates preservation
+    // 2. Validate Projects metadata (title, techStack, date)
+    const origProj = orig.projects || [];
+    const optProj = opt.projects || [];
+    origProj.forEach((origEntry, idx) => {
+      const optEntry = optProj[idx];
+      if (!optEntry) {
+        issues.push(`Preservation failed: Project entry at index ${idx + 1} was removed.`);
+      } else {
+        checkMatch(origEntry.title, optEntry.title, `Project title`);
+        checkMatch(origEntry.techStack, optEntry.techStack, `Project tech stack`);
+        checkMatch(origEntry.date, optEntry.date, `Project date`);
+      }
+    });
+
+    // 3. Validate Education
+    const origEdu = orig.education || [];
+    const optEdu = opt.education || [];
+    origEdu.forEach((origVal, idx) => {
+      const optVal = optEdu[idx];
+      if (!optVal) {
+        issues.push(`Preservation failed: Education credential "${origVal}" was removed.`);
+      } else {
+        checkMatch(origVal, optVal, `Education entry`);
+      }
+    });
+
+    // 4. Validate Achievements
+    const origAch = orig.achievements || [];
+    const optAch = opt.achievements || [];
+    origAch.forEach((origVal, idx) => {
+      const optVal = optAch[idx];
+      if (!optVal) {
+        issues.push(`Preservation failed: Achievement "${origVal}" was removed.`);
+      } else {
+        checkMatch(origVal, optVal, `Achievement entry`);
+      }
+    });
+
+    // 5. Check Dates preservation
     const dateRegex = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December|Present)\s+\d{4}|\b\d{4}\s*-\s*(?:\d{4}|Present)\b|\b\d{4}\b/gi;
     const collectDates = (sections: ParsedSections) => {
       const dates = new Set<string>();
-      Object.values(sections).flat().forEach((str) => {
+      const processString = (str: string) => {
         const matches = String(str).match(dateRegex);
         if (matches) {
           matches.forEach(m => dates.add(m.trim().toLowerCase()));
         }
+      };
+
+      sections.education.forEach(processString);
+      sections.achievements.forEach(processString);
+      sections.skills.forEach(processString);
+      sections.experience.forEach(e => {
+        processString(e.role);
+        processString(e.company);
+        processString(e.date);
       });
+      sections.projects.forEach(p => {
+        processString(p.title);
+        processString(p.techStack);
+        processString(p.date);
+      });
+
       return dates;
     };
 
@@ -186,11 +237,10 @@ export default function ResumePreview() {
     }
   };
 
-  // Trigger Backend PDF rendering stream with validation checks
+  // Trigger Backend PDF rendering stream
   const handleExportPdf = async () => {
     if (!currentSections) return;
     
-    // 1. Run local validation checks
     const errors = validateResumeStructure(original, currentSections);
     if (errors.length > 0) {
       setStructErrors(errors);
@@ -210,7 +260,7 @@ export default function ResumePreview() {
           phone: candidatePhone,
           links: candidateLinks,
           parsedSections: currentSections,
-          originalSections: original, // Pass to backend for server-side validation
+          originalSections: original,
         },
         { responseType: 'blob' }
       );
@@ -232,11 +282,10 @@ export default function ResumePreview() {
     }
   };
 
-  // Trigger Backend Word rendering stream with validation checks
+  // Trigger Backend Word rendering stream
   const handleExportDocx = async () => {
     if (!currentSections) return;
 
-    // 1. Run local validation checks
     const errors = validateResumeStructure(original, currentSections);
     if (errors.length > 0) {
       setStructErrors(errors);
@@ -256,7 +305,7 @@ export default function ResumePreview() {
           phone: candidatePhone,
           links: candidateLinks,
           parsedSections: currentSections,
-          originalSections: original, // Pass to backend for server-side validation
+          originalSections: original,
         },
         { responseType: 'blob' }
       );
@@ -288,19 +337,39 @@ export default function ResumePreview() {
 
   // Comparative metrics
   let acceptedCount = 0;
-  const countChanges = (sec: keyof ParsedSections) => {
-    const oList = original[sec] || [];
-    const cList = currentSections?.[sec] || [];
-    cList.forEach((val: string, idx: number) => {
-      if (oList[idx] !== undefined && oList[idx] !== val) {
-        acceptedCount++;
+  const countExperienceChanges = () => {
+    const origList = original.experience || [];
+    const currList = currentSections?.experience || [];
+    currList.forEach((entry: WorkExperience, eIdx: number) => {
+      const origEntry = origList[eIdx];
+      if (origEntry && origEntry.bullets && entry.bullets) {
+        entry.bullets.forEach((bullet: string, bIdx: number) => {
+          if (origEntry.bullets[bIdx] !== undefined && origEntry.bullets[bIdx] !== bullet) {
+            acceptedCount++;
+          }
+        });
       }
     });
   };
+
+  const countProjectChanges = () => {
+    const origList = original.projects || [];
+    const currList = currentSections?.projects || [];
+    currList.forEach((entry: ProjectEntry, eIdx: number) => {
+      const origEntry = origList[eIdx];
+      if (origEntry && origEntry.bullets && entry.bullets) {
+        entry.bullets.forEach((bullet: string, bIdx: number) => {
+          if (origEntry.bullets[bIdx] !== undefined && origEntry.bullets[bIdx] !== bullet) {
+            acceptedCount++;
+          }
+        });
+      }
+    });
+  };
+
   if (currentSections) {
-    countChanges('experience');
-    countChanges('projects');
-    countChanges('skills');
+    countExperienceChanges();
+    countProjectChanges();
   }
   const ignoredCount = Math.max(0, 5 - acceptedCount);
 
@@ -391,7 +460,7 @@ export default function ResumePreview() {
             </button>
             <button
               onClick={handleExportPdf}
-              className="flex items-center gap-1 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-md shadow-blue-500/10 transition-all"
+              className="flex items-center gap-1 px-3.5 py-2 bg-blue-650 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-md shadow-blue-500/10 transition-all"
             >
               <Download className="w-3.5 h-3.5" /> Download PDF
             </button>
@@ -524,7 +593,7 @@ export default function ResumePreview() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-xs text-slate-500 italic bg-slate-950/20 p-3 rounded-xl">
+              <div className="flex items-center gap-2 text-xs text-slate-550 italic bg-slate-950/20 p-3 rounded-xl">
                 <Info className="w-4 h-4 text-slate-600" />
                 <span>Runs pre-flight validation for duplicate skills, formatting, and repeated expressions.</span>
               </div>
@@ -614,7 +683,28 @@ export default function ResumePreview() {
                         const list = compareVerA
                           ? selectedVerA?.parsedSections[activeSection] || []
                           : original[activeSection] || [];
-                        return list.map((item: string, idx: number) => (
+                        
+                        if (activeSection === 'experience') {
+                          return (list as any[]).map((entry, eIdx) => (
+                            <div key={eIdx} className="space-y-1 mb-3">
+                              <div className="font-bold text-slate-400">{entry.role} at {entry.company} ({entry.date})</div>
+                              <ul className="list-disc list-inside pl-2 space-y-0.5">
+                                {entry.bullets?.map((b: string, bIdx: number) => <li key={bIdx}>{b}</li>)}
+                              </ul>
+                            </div>
+                          ));
+                        }
+                        if (activeSection === 'projects') {
+                          return (list as any[]).map((entry, eIdx) => (
+                            <div key={eIdx} className="space-y-1 mb-3">
+                              <div className="font-bold text-slate-400">{entry.title} | {entry.techStack} ({entry.date})</div>
+                              <ul className="list-disc list-inside pl-2 space-y-0.5">
+                                {entry.bullets?.map((b: string, bIdx: number) => <li key={bIdx}>{b}</li>)}
+                              </ul>
+                            </div>
+                          ));
+                        }
+                        return (list as string[]).map((item, idx) => (
                           <p key={idx} className="pb-2 border-b border-slate-900/30 last:border-0">• {item}</p>
                         ));
                       })()}
@@ -626,7 +716,7 @@ export default function ResumePreview() {
                     <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider block">
                       {compareVerB ? `${selectedVerB?.userNotes || 'Version B'} Sections` : 'Active Optimized Draft'}
                     </span>
-                    <div className="p-5 border border-indigo-950/40 bg-indigo-950/5 rounded-xl min-h-[220px] space-y-3 text-xs leading-relaxed text-slate-330">
+                    <div className="p-5 border border-indigo-950/40 bg-indigo-950/5 rounded-xl min-h-[220px] space-y-3 text-xs leading-relaxed text-slate-350">
                       {(() => {
                         const listA = compareVerA
                           ? selectedVerA?.parsedSections[activeSection] || []
@@ -634,10 +724,43 @@ export default function ResumePreview() {
                         const listB = compareVerB
                           ? selectedVerB?.parsedSections[activeSection] || []
                           : currentSections[activeSection] || [];
+
+                        if (activeSection === 'experience') {
+                          return (listB as any[]).map((entry, eIdx) => {
+                            const entryA = (listA as any[])[eIdx];
+                            return (
+                              <div key={eIdx} className="space-y-1 mb-3">
+                                <div className="font-bold text-white">{entry.role} at {entry.company} ({entry.date})</div>
+                                <div className="space-y-1.5 pl-2">
+                                  {entry.bullets?.map((bullet: string, bIdx: number) => {
+                                    const valA = entryA?.bullets?.[bIdx] || '';
+                                    return <div key={bIdx}>{renderWordDiff(valA, bullet)}</div>;
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          });
+                        }
+                        if (activeSection === 'projects') {
+                          return (listB as any[]).map((entry, eIdx) => {
+                            const entryA = (listA as any[])[eIdx];
+                            return (
+                              <div key={eIdx} className="space-y-1 mb-3">
+                                <div className="font-bold text-white">{entry.title} | {entry.techStack} ({entry.date})</div>
+                                <div className="space-y-1.5 pl-2">
+                                  {entry.bullets?.map((bullet: string, bIdx: number) => {
+                                    const valA = entryA?.bullets?.[bIdx] || '';
+                                    return <div key={bIdx}>{renderWordDiff(valA, bullet)}</div>;
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          });
+                        }
                         
-                        return listB.map((item: string, idx: number) => (
+                        return (listB as string[]).map((item: string, idx: number) => (
                           <div key={idx} className="pb-2 border-b border-slate-900/30 last:border-0">
-                            {idx < listA.length ? renderWordDiff(listA[idx], item) : <p className="text-green-400">• {item}</p>}
+                            {idx < (listA as string[]).length ? renderWordDiff((listA as string[])[idx], item) : <p className="text-green-400">• {item}</p>}
                           </div>
                         ));
                       })()}
@@ -658,12 +781,27 @@ export default function ResumePreview() {
                       {activeSection} original content
                     </div>
                     <div className="space-y-3.5 text-xs text-slate-400 leading-relaxed">
-                      {(original[activeSection] || []).map((item: string, idx: number) => (
+                      {activeSection === 'experience' && (original.experience || []).map((entry: any, eIdx: number) => (
+                        <div key={eIdx} className="space-y-1 mb-4">
+                          <div className="font-bold text-slate-350">{entry.role} at {entry.company} ({entry.date})</div>
+                          <ul className="list-disc list-inside space-y-1 pl-2 text-slate-400">
+                            {(entry.bullets || []).map((b: string, bIdx: number) => <li key={bIdx}>{b}</li>)}
+                          </ul>
+                        </div>
+                      ))}
+
+                      {activeSection === 'projects' && (original.projects || []).map((entry: any, eIdx: number) => (
+                        <div key={eIdx} className="space-y-1 mb-4">
+                          <div className="font-bold text-slate-350">{entry.title} | {entry.techStack} ({entry.date})</div>
+                          <ul className="list-disc list-inside space-y-1 pl-2 text-slate-400">
+                            {(entry.bullets || []).map((b: string, bIdx: number) => <li key={bIdx}>{b}</li>)}
+                          </ul>
+                        </div>
+                      ))}
+
+                      {activeSection !== 'experience' && activeSection !== 'projects' && (original[activeSection] || []).map((item: any, idx: number) => (
                         <p key={idx} className="pb-2.5 border-b border-slate-900/40 last:border-0 last:pb-0">• {item}</p>
                       ))}
-                      {(original[activeSection] || []).length === 0 && (
-                        <p className="italic text-slate-600">No content available in original sections.</p>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -677,19 +815,53 @@ export default function ResumePreview() {
                       <span className="text-[9px] text-indigo-400 lowercase italic">diff highlight active</span>
                     </div>
                     <div className="space-y-3.5 text-xs text-slate-200 leading-relaxed">
-                      {(currentSections[activeSection] || []).map((item: string, idx: number) => {
+                      {activeSection === 'experience' && (currentSections.experience || []).map((entry: any, eIdx: number) => {
+                        const origEntry = original.experience?.[eIdx];
+                        return (
+                          <div key={eIdx} className="space-y-1 mb-4">
+                            <div className="font-bold text-white">{entry.role} at {entry.company} ({entry.date})</div>
+                            <div className="space-y-2.5 pl-2">
+                              {(entry.bullets || []).map((bullet: string, bIdx: number) => {
+                                const origVal = origEntry?.bullets?.[bIdx] || '';
+                                return (
+                                  <div key={bIdx} className="pb-1">
+                                    {renderWordDiff(origVal, bullet)}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {activeSection === 'projects' && (currentSections.projects || []).map((entry: any, eIdx: number) => {
+                        const origEntry = original.projects?.[eIdx];
+                        return (
+                          <div key={eIdx} className="space-y-1 mb-4">
+                            <div className="font-bold text-white">{entry.title} | {entry.techStack} ({entry.date})</div>
+                            <div className="space-y-2.5 pl-2">
+                              {(entry.bullets || []).map((bullet: string, bIdx: number) => {
+                                const origVal = origEntry?.bullets?.[bIdx] || '';
+                                return (
+                                  <div key={bIdx} className="pb-1">
+                                    {renderWordDiff(origVal, bullet)}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {activeSection !== 'experience' && activeSection !== 'projects' && (currentSections[activeSection] || []).map((item: any, idx: number) => {
                         const origList = original[activeSection] || [];
                         const origVal = origList[idx] || '';
-                        
                         return (
                           <div key={idx} className="pb-2.5 border-b border-slate-900/40 last:border-0 last:pb-0">
                             {renderWordDiff(origVal, item)}
                           </div>
                         );
                       })}
-                      {(currentSections[activeSection] || []).length === 0 && (
-                        <p className="italic text-slate-655">No content available in optimized sections.</p>
-                      )}
                     </div>
                   </div>
                 </div>

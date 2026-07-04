@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -8,7 +8,6 @@ import {
   Undo2,
   Redo2,
   Check,
-  X,
   Edit2,
   ChevronRight,
   Info,
@@ -42,7 +41,8 @@ export default function ResumeRewriter() {
   } = useResumeStore();
 
   const [activeSection, setActiveSection] = useState<keyof ParsedSections>('experience');
-  const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [activeEntryIndex, setActiveEntryIndex] = useState<number>(0);
+  const [activeBulletIndex, setActiveBulletIndex] = useState<number>(0);
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState<SuggestionState | null>(null);
   
@@ -67,32 +67,41 @@ export default function ResumeRewriter() {
     if (overallScore !== animatedScore) {
       const diff = overallScore - animatedScore;
       if (diff === 0) return;
-      const step = diff > 0 ? 1 : -1;
+
+      const duration = 800; // ms
+      const steps = Math.abs(diff);
+      const stepTime = Math.max(10, Math.floor(duration / steps));
+      
       const timer = setInterval(() => {
         setAnimatedScore((prev) => {
-          const next = prev + step;
-          if (next === overallScore) {
-            clearInterval(timer);
-          }
-          return next;
+          if (prev < overallScore) return prev + 1;
+          if (prev > overallScore) return prev - 1;
+          clearInterval(timer);
+          return prev;
         });
-      }, 30);
+      }, stepTime);
+
       return () => clearInterval(timer);
     }
   }, [overallScore, animatedScore]);
 
-  // Load suggestion whenever active bullet index changes
+  // Load cache when selection changes
   useEffect(() => {
     if (!parsedSections) return;
-    const bullets = parsedSections[activeSection] || [];
-    const bullet = bullets[activeIndex];
-    
+    let bullet = '';
+    if (activeSection === 'experience' || activeSection === 'projects') {
+      const entry = parsedSections[activeSection]?.[activeEntryIndex];
+      bullet = entry?.bullets?.[activeBulletIndex] || '';
+    } else {
+      bullet = (parsedSections[activeSection] as string[])?.[activeEntryIndex] || '';
+    }
+
     if (!bullet) {
       setActiveSuggestion(null);
       return;
     }
 
-    const cacheKey = `${activeSection}-${activeIndex}-${bullet}`;
+    const cacheKey = `${activeSection}-${activeEntryIndex}-${activeBulletIndex}-${bullet}`;
     if (suggestionCache[cacheKey]) {
       setActiveSuggestion(suggestionCache[cacheKey]);
       setIsEditing(false);
@@ -100,7 +109,7 @@ export default function ResumeRewriter() {
       setActiveSuggestion(null);
       setIsEditing(false);
     }
-  }, [activeSection, activeIndex, parsedSections, suggestionCache]);
+  }, [activeSection, activeEntryIndex, activeBulletIndex, parsedSections, suggestionCache]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -110,8 +119,13 @@ export default function ResumeRewriter() {
   // Call backend POST /api/resume/rewrite
   const fetchSuggestion = async () => {
     if (!parsedSections) return;
-    const bullets = parsedSections[activeSection] || [];
-    const bullet = bullets[activeIndex];
+    let bullet = '';
+    if (activeSection === 'experience' || activeSection === 'projects') {
+      const entry = parsedSections[activeSection]?.[activeEntryIndex];
+      bullet = entry?.bullets?.[activeBulletIndex] || '';
+    } else {
+      bullet = (parsedSections[activeSection] as string[])?.[activeEntryIndex] || '';
+    }
     if (!bullet) return;
 
     setLoadingSuggestion(true);
@@ -126,7 +140,7 @@ export default function ResumeRewriter() {
 
       if (response.data && response.data.success && response.data.data) {
         const data = response.data.data;
-        const cacheKey = `${activeSection}-${activeIndex}-${bullet}`;
+        const cacheKey = `${activeSection}-${activeEntryIndex}-${activeBulletIndex}-${bullet}`;
         
         const suggestion: SuggestionState = {
           original: bullet,
@@ -143,14 +157,13 @@ export default function ResumeRewriter() {
       }
     } catch (err: any) {
       console.error('Fetch suggestion error:', err);
-      // Fallback generator
       const fallbackSuggestion = {
         original: bullet,
         improved: `Engineered highly optimal ${bullet.replace(/^(did|worked on|helped|coordinate|coordinated)/i, 'Microservices')} - optimizing pipeline throughput by 32% and reducing average latency by 18%.`,
         reason: 'Swapped weak action verb with a strong engineering term and attached quantitative metrics for better ATS matching.',
         estimatedAtsImprovement: 6,
       };
-      const cacheKey = `${activeSection}-${activeIndex}-${bullet}`;
+      const cacheKey = `${activeSection}-${activeEntryIndex}-${activeBulletIndex}-${bullet}`;
       setSuggestionCache((prev) => ({ ...prev, [cacheKey]: fallbackSuggestion }));
       setActiveSuggestion(fallbackSuggestion);
       setEditedText(fallbackSuggestion.improved);
@@ -167,7 +180,8 @@ export default function ResumeRewriter() {
     // Call Zustand store update action
     updateParsedSection(
       activeSection,
-      activeIndex,
+      activeEntryIndex,
+      activeBulletIndex,
       textToMerge,
       activeSuggestion.estimatedAtsImprovement
     );
@@ -178,52 +192,9 @@ export default function ResumeRewriter() {
 
   const handleReject = () => {
     setActiveSuggestion(null);
-    showToast('Suggestion dismissed.');
+    setIsEditing(false);
+    showToast('AI suggestion rejected.');
   };
-
-  // Word alignment diff markup generator
-  const renderDiff = (original: string, improved: string) => {
-    const origWords = original.split(/\s+/);
-    const impWords = improved.split(/\s+/);
-    
-    const result: React.ReactNode[] = [];
-    let i = 0;
-    let j = 0;
-
-    while (i < origWords.length || j < impWords.length) {
-      if (i < origWords.length && j < impWords.length && origWords[i] === impWords[j]) {
-        result.push(<span key={`eq-${i}-${j}`}> {origWords[i]} </span>);
-        i++;
-        j++;
-      } else if (j < impWords.length && (i >= origWords.length || !origWords.slice(i).includes(impWords[j]))) {
-        // added word
-        result.push(
-          <span
-            key={`add-${j}`}
-            className="bg-green-950/60 text-green-400 border border-green-900/40 px-1.5 py-0.5 rounded font-semibold text-[11px]"
-          >
-            {impWords[j]}
-          </span>
-        );
-        j++;
-      } else {
-        // removed word
-        result.push(
-          <span
-            key={`del-${i}`}
-            className="bg-red-950/50 text-red-400 line-through border border-red-900/40 px-1 py-0.5 rounded text-[11px]"
-          >
-            {origWords[i]}
-          </span>
-        );
-        i++;
-      }
-    }
-
-    return <div className="leading-relaxed text-xs text-slate-200 mt-2 bg-slate-950/40 p-4 border border-slate-900 rounded-xl">{result}</div>;
-  };
-
-
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10 select-none">
@@ -235,75 +206,62 @@ export default function ResumeRewriter() {
             initial={{ opacity: 0, y: -20, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: -20, x: '-50%' }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-650 text-xs font-bold text-white rounded-lg shadow-xl shadow-blue-500/10 flex items-center gap-1.5 border border-blue-500"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-blue-650 text-xs font-bold text-white rounded-lg shadow-xl border border-blue-500 flex items-center gap-1.5"
           >
             <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" /> {toastMessage}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Header Panel */}
+      {/* Top action header bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-900 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1.5">
-            <Sparkles className="w-5 h-5 text-indigo-400" /> AI Resume Editor
+            <Sparkles className="w-5 h-5 text-indigo-400" /> AI Resume Copilot
           </h1>
-          <p className="text-slate-550 text-xs mt-0.5">Select experience or project descriptions on the left panel to scan and refactor them with Gemini.</p>
+          <p className="text-slate-550 text-xs mt-0.5">Optimize professional bullet descriptions and metadata fields in real-time.</p>
         </div>
 
-        {/* Undo/Redo/Export row */}
-        {parsedSections && (
-          <div className="flex items-center gap-4">
-            {/* Undo/Redo buttons */}
-            <div className="flex items-center bg-slate-900/50 border border-slate-850 p-1 rounded-xl gap-1">
-              <button
-                onClick={undo}
-                disabled={history.length === 0}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                title="Undo Action"
-              >
-                <Undo2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={redo}
-                disabled={future.length === 0}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                title="Redo Action"
-              >
-                <Redo2 className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Score Dial */}
-            <div className="flex items-center gap-3 bg-slate-950 border border-slate-850 px-4 py-1.5 rounded-xl text-xs">
-              <span className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">ATS score</span>
-              <span className="font-extrabold text-green-400 font-mono text-sm bg-green-950/40 px-2 py-0.5 border border-green-900/40 rounded">
-                {animatedScore}%
-              </span>
-            </div>
-
-            {/* Transition to Preview page */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => navigate('/resume-preview')}
-                className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-650 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-xs font-bold rounded-lg text-white transition-all shadow-md shadow-blue-500/10"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-yellow-300" /> Preview & Export Resume
-              </button>
-            </div>
+        <div className="flex items-center gap-3">
+          {/* Undo/Redo actions */}
+          <div className="flex bg-slate-950 p-1 border border-slate-900 rounded-xl gap-1">
+            <button
+              onClick={undo}
+              disabled={history.length === 0}
+              className="p-2 rounded-lg text-slate-400 hover:bg-slate-900 hover:text-white disabled:opacity-40 transition-all"
+              title="Undo Action"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={redo}
+              disabled={future.length === 0}
+              className="p-2 rounded-lg text-slate-400 hover:bg-slate-900 hover:text-white disabled:opacity-40 transition-all"
+              title="Redo Action"
+            >
+              <Redo2 className="w-4 h-4" />
+            </button>
           </div>
-        )}
+
+          {/* Central Workflow Transition Button */}
+          <button
+            onClick={() => navigate('/resume-preview')}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-650 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-md shadow-blue-500/10 transition-all"
+          >
+            <FileText className="w-4 h-4" /> Preview & Export Resume
+          </button>
+        </div>
       </div>
 
       {!parsedSections ? (
-        <div className="p-12 border border-slate-850 bg-slate-900/10 rounded-2xl text-center space-y-4 max-w-xl mx-auto">
+        <div className="p-12 border border-slate-850 bg-slate-900/10 rounded-2xl text-center space-y-4 max-w-xl mx-auto mt-10">
           <div className="mx-auto h-12 w-12 rounded-xl bg-slate-950/60 border border-slate-850 flex items-center justify-center text-slate-550">
             <FileText className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">No active resume analyzed</h3>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              To edit and optimize resume sections, upload and analyze your PDF resume file in the Scanner page first.
+            <h3 className="text-sm font-bold text-white">No parsed sections available</h3>
+            <p className="text-xs text-slate-550 mt-1 leading-relaxed">
+              Upload your raw SDE resume from the dashboard to start analyzing and rewriting bullet points.
             </p>
           </div>
         </div>
@@ -355,7 +313,8 @@ export default function ResumeRewriter() {
                   key={sec}
                   onClick={() => {
                     setActiveSection(sec);
-                    setActiveIndex(0);
+                    setActiveEntryIndex(0);
+                    setActiveBulletIndex(0);
                   }}
                   className={`px-3 py-2 rounded-lg text-xs font-bold tracking-wide uppercase flex-shrink-0 transition-all ${
                     activeSection === sec
@@ -376,53 +335,116 @@ export default function ResumeRewriter() {
                   {activeSection} Outline
                 </span>
                 <span className="text-[10px] text-slate-500 font-mono">
-                  {(parsedSections[activeSection] || []).length} items detected
+                  {activeSection === 'experience' || activeSection === 'projects'
+                    ? (parsedSections[activeSection] || []).reduce((acc: number, entry: any) => acc + (entry.bullets?.length || 0), 0)
+                    : (parsedSections[activeSection] || []).length} items detected
                 </span>
               </div>
 
-              <div className="space-y-3">
-                {(parsedSections[activeSection] || []).map((bullet: string, idx: number) => {
-                  const isSelected = activeIndex === idx;
-                  const isInteractive = activeSection === 'experience' || activeSection === 'projects';
-                  
+              <div className="space-y-4">
+                {activeSection === 'experience' && (parsedSections.experience || []).map((entry: any, eIdx: number) => (
+                  <div key={eIdx} className="space-y-2">
+                    <div className="text-slate-400 font-bold border-l-2 border-indigo-650 pl-2 text-[11px] uppercase tracking-wide">
+                      {entry.role} at {entry.company} ({entry.date})
+                    </div>
+                    <div className="space-y-2 pl-3">
+                      {(entry.bullets || []).map((bullet: string, bIdx: number) => {
+                        const isSelected = activeEntryIndex === eIdx && activeBulletIndex === bIdx;
+                        return (
+                          <div
+                            key={bIdx}
+                            onClick={() => {
+                              setActiveEntryIndex(eIdx);
+                              setActiveBulletIndex(bIdx);
+                            }}
+                            className={`p-3.5 border rounded-xl transition-all relative overflow-hidden text-xs leading-relaxed cursor-pointer ${
+                              isSelected
+                                ? 'border-indigo-500 bg-indigo-950/10 shadow shadow-indigo-500/5'
+                                : 'border-slate-900 bg-slate-950/20 hover:border-slate-850'
+                            }`}
+                          >
+                            {isSelected && (
+                              <div className="absolute top-0 right-0 bg-indigo-650 px-2 py-0.5 text-[8px] font-bold text-white uppercase tracking-wider rounded-bl">
+                                Active Selection
+                              </div>
+                            )}
+                            <div className="flex gap-2">
+                              <ChevronRight className={`w-4 h-4 mt-0.5 flex-shrink-0 transition-all ${
+                                isSelected ? 'text-indigo-400 translate-x-0.5' : 'text-slate-655'
+                              }`} />
+                              <p className={`font-medium ${isSelected ? 'text-white' : 'text-slate-350'}`}>
+                                {bullet}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                {activeSection === 'projects' && (parsedSections.projects || []).map((entry: any, eIdx: number) => (
+                  <div key={eIdx} className="space-y-2">
+                    <div className="text-slate-400 font-bold border-l-2 border-indigo-650 pl-2 text-[11px] uppercase tracking-wide">
+                      {entry.title} | {entry.techStack} ({entry.date})
+                    </div>
+                    <div className="space-y-2 pl-3">
+                      {(entry.bullets || []).map((bullet: string, bIdx: number) => {
+                        const isSelected = activeEntryIndex === eIdx && activeBulletIndex === bIdx;
+                        return (
+                          <div
+                            key={bIdx}
+                            onClick={() => {
+                              setActiveEntryIndex(eIdx);
+                              setActiveBulletIndex(bIdx);
+                            }}
+                            className={`p-3.5 border rounded-xl transition-all relative overflow-hidden text-xs leading-relaxed cursor-pointer ${
+                              isSelected
+                                ? 'border-indigo-500 bg-indigo-950/10 shadow shadow-indigo-500/5'
+                                : 'border-slate-900 bg-slate-950/20 hover:border-slate-850'
+                            }`}
+                          >
+                            {isSelected && (
+                              <div className="absolute top-0 right-0 bg-indigo-650 px-2 py-0.5 text-[8px] font-bold text-white uppercase tracking-wider rounded-bl">
+                                Active Selection
+                              </div>
+                            )}
+                            <div className="flex gap-2">
+                              <ChevronRight className={`w-4 h-4 mt-0.5 flex-shrink-0 transition-all ${
+                                isSelected ? 'text-indigo-400 translate-x-0.5' : 'text-slate-655'
+                              }`} />
+                              <p className={`font-medium ${isSelected ? 'text-white' : 'text-slate-350'}`}>
+                                {bullet}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                {activeSection !== 'experience' && activeSection !== 'projects' && (parsedSections[activeSection] || []).map((bullet: string, idx: number) => {
+                  const isSelected = activeEntryIndex === idx && activeBulletIndex === -1;
                   return (
                     <div
                       key={idx}
-                      onClick={() => isInteractive && setActiveIndex(idx)}
-                      className={`p-4 border rounded-xl transition-all relative overflow-hidden text-xs leading-relaxed ${
-                        isInteractive ? 'cursor-pointer' : 'cursor-default'
-                      } ${
+                      onClick={() => {
+                        setActiveEntryIndex(idx);
+                        setActiveBulletIndex(-1);
+                      }}
+                      className={`p-3.5 border rounded-xl transition-all relative overflow-hidden text-xs leading-relaxed cursor-default ${
                         isSelected
-                          ? 'border-indigo-500 bg-indigo-950/10 shadow shadow-indigo-500/5'
+                          ? 'border-indigo-500 bg-indigo-950/10 shadow'
                           : 'border-slate-900 bg-slate-950/20 hover:border-slate-850'
                       }`}
                     >
-                      {/* Active marker label */}
-                      {isSelected && isInteractive && (
-                        <div className="absolute top-0 right-0 bg-indigo-650 px-2 py-0.5 text-[8px] font-bold text-white uppercase tracking-wider rounded-bl">
-                          Active Selection
-                        </div>
-                      )}
-                      
-                      <div className="flex gap-2">
-                        {isInteractive && (
-                          <ChevronRight className={`w-4 h-4 mt-0.5 flex-shrink-0 transition-all ${
-                            isSelected ? 'text-indigo-400 translate-x-0.5' : 'text-slate-655'
-                          }`} />
-                        )}
-                        <p className={`font-medium ${isSelected ? 'text-white' : 'text-slate-350'}`}>
-                          {bullet}
-                        </p>
-                      </div>
+                      <p className="font-medium text-slate-350">
+                        {bullet}
+                      </p>
                     </div>
                   );
                 })}
-
-                {(parsedSections[activeSection] || []).length === 0 && (
-                  <div className="py-10 text-center text-xs text-slate-550 italic">
-                    This section does not contain any parsed bullet points.
-                  </div>
-                )}
               </div>
 
             </div>
@@ -432,7 +454,7 @@ export default function ResumeRewriter() {
           <div className="lg:col-span-2 space-y-4">
             
             {/* Context title */}
-            <div className="px-1 py-1.5 flex justify-between items-center text-xs text-slate-455 font-bold uppercase tracking-wider">
+            <div className="px-1 py-1.5 flex justify-between items-center text-xs text-slate-500 font-bold uppercase tracking-wider">
               <span>AI Optimizer Suggestion</span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" /> Live Analysis
@@ -455,92 +477,96 @@ export default function ResumeRewriter() {
                     </div>
                   </div>
                 ) : activeSuggestion ? (
-                  <div className="p-5 bg-slate-900/10 border border-slate-850 rounded-2xl shadow-xl space-y-5">
+                  <div className="space-y-4">
                     
-                    {/* Header badge details */}
-                    <div className="flex justify-between items-center border-b border-slate-900 pb-2">
-                      <span className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-wide">Optimization Suggestion</span>
-                      <span className="text-[9px] text-green-400 font-bold bg-green-950/40 px-2 py-0.5 border border-green-900/40 rounded font-mono">
-                        +{activeSuggestion.estimatedAtsImprovement}% Score Boost
+                    {/* Metrics Score Card */}
+                    <div className="p-4 bg-indigo-950/15 border border-indigo-950 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[9px] text-indigo-400 font-bold uppercase block">ATS Keyword Score Match</span>
+                        <span className="text-xs font-semibold text-slate-300 mt-1 block">Expected Boost:</span>
+                      </div>
+                      <span className="text-xl font-extrabold text-green-400 font-mono bg-green-950/40 border border-green-900/30 px-3 py-1 rounded-xl">
+                        +{activeSuggestion.estimatedAtsImprovement}%
                       </span>
                     </div>
 
-                    {/* Diff View */}
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Visual Differences</span>
-                      {renderDiff(activeSuggestion.original, isEditing ? editedText : activeSuggestion.improved)}
-                    </div>
-
-                    {/* Explanation */}
-                    <div className="p-3.5 bg-slate-950/50 border border-slate-900 rounded-xl space-y-1.5 text-xs">
-                      <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-wider block flex items-center gap-1">
-                        <Info className="w-3.5 h-3.5" /> AI Explanation
-                      </span>
-                      <p className="text-slate-400 leading-relaxed font-medium">
-                        {activeSuggestion.reason}
-                      </p>
-                    </div>
-
-                    {/* Inline Editor */}
-                    {isEditing ? (
-                      <div className="space-y-2">
-                        <span className="text-[9px] text-slate-550 font-bold uppercase tracking-wider block">Custom Edit suggested text</span>
-                        <textarea
-                          value={editedText}
-                          onChange={(e) => setEditedText(e.target.value)}
-                          rows={3}
-                          className="w-full bg-slate-950 border border-slate-900 text-white rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:border-indigo-500"
-                        />
-                      </div>
-                    ) : null}
-
-                    {/* Actions row */}
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-900/60">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleAccept}
-                          className="flex items-center gap-1 px-3.5 py-2 bg-green-600 hover:bg-green-700 text-xs font-bold rounded-lg text-white shadow-md shadow-green-500/10 transition-all"
-                        >
-                          <Check className="w-3.5 h-3.5" /> Accept Suggestion
-                        </button>
-                        <button
-                          onClick={handleReject}
-                          className="flex items-center gap-1 px-3 py-2 bg-slate-950 border border-slate-900 hover:bg-slate-900 text-xs font-semibold rounded-lg text-slate-400 transition-all"
-                        >
-                          <X className="w-3.5 h-3.5" /> Reject
-                        </button>
+                    {/* Rewritten card comparisons */}
+                    <div className="space-y-3">
+                      
+                      {/* Original Block */}
+                      <div className="p-4 bg-slate-950 border border-slate-900 rounded-2xl text-xs space-y-2">
+                        <span className="text-[9px] text-slate-500 font-bold uppercase block">Original Bullet Point</span>
+                        <p className="leading-relaxed text-slate-400 italic">"{activeSuggestion.original}"</p>
                       </div>
 
+                      {/* AI Rewritten Block */}
+                      <div className="p-5 bg-[#080d1a] border border-blue-950 rounded-2xl text-xs space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] text-blue-400 font-bold uppercase">SDE Optimized Refactor</span>
+                          <button
+                            onClick={() => {
+                              setIsEditing(!isEditing);
+                              if (!isEditing) setEditedText(activeSuggestion.improved);
+                            }}
+                            className="text-slate-500 hover:text-slate-300 flex items-center gap-1"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            {isEditing ? 'Cancel Edit' : 'Edit Text'}
+                          </button>
+                        </div>
+
+                        {isEditing ? (
+                          <textarea
+                            value={editedText}
+                            onChange={(e) => setEditedText(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-900 text-white rounded-lg p-2 text-xs h-24 focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
+                          />
+                        ) : (
+                          <p className="leading-relaxed text-slate-200 font-medium">"{activeSuggestion.improved}"</p>
+                        )}
+                      </div>
+
+                      {/* Explanation details */}
+                      <div className="p-4 bg-slate-900/10 border border-slate-850 rounded-2xl text-[11px] leading-relaxed text-slate-400 space-y-1">
+                        <span className="text-[9px] text-indigo-400 font-bold uppercase block tracking-wider">Hiring Manager Reasoning</span>
+                        <p>{activeSuggestion.reason}</p>
+                      </div>
+
+                    </div>
+
+                    {/* Accept / Reject actions */}
+                    <div className="grid grid-cols-2 gap-3 pt-2">
                       <button
-                        onClick={() => {
-                          if (isEditing) {
-                            handleAccept();
-                          } else {
-                            setIsEditing(true);
-                            setEditedText(activeSuggestion.improved);
-                          }
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold rounded-lg transition-all"
+                        onClick={handleReject}
+                        className="px-4 py-2.5 bg-slate-950 border border-slate-900 hover:bg-slate-900 text-xs font-semibold rounded-lg text-slate-400 transition-all"
                       >
-                        <Edit2 className="w-3 h-3" /> {isEditing ? 'Save & Accept' : 'Custom Edit'}
+                        Keep Original
+                      </button>
+                      <button
+                        onClick={handleAccept}
+                        className="px-4 py-2.5 bg-blue-650 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-md shadow-blue-500/10 transition-all flex items-center justify-center gap-1"
+                      >
+                        <Check className="w-4 h-4" /> Merge Rewrite
                       </button>
                     </div>
 
                   </div>
                 ) : (
-                  <div className="p-6 bg-slate-900/10 border border-slate-850 rounded-2xl text-center space-y-4 min-h-[220px] flex flex-col justify-center items-center">
-                    <Sparkles className="w-6 h-6 text-indigo-400 animate-pulse" />
+                  <div className="p-8 border border-slate-850 bg-slate-900/10 rounded-2xl text-center space-y-4 min-h-[220px] flex flex-col justify-center">
+                    <div className="mx-auto h-10 w-10 rounded-xl bg-slate-950/60 border border-slate-850 flex items-center justify-center text-slate-550">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
                     <div>
-                      <span className="text-xs font-bold text-white block">Optimize this bullet point</span>
-                      <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
-                        Generate strong action verbs and quantified impact metrics using Gemini.
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Optimize Select Item</h4>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                        Click on any bullet point in the layout list, then click below to trigger Google Gemini refactoring.
                       </p>
                     </div>
                     <button
                       onClick={fetchSuggestion}
-                      className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-all shadow-md shadow-indigo-500/10"
+                      className="mx-auto px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-xs font-bold text-white rounded-lg shadow-md shadow-indigo-500/10 transition-all"
                     >
-                      Scan and Suggest Rewrites
+                      Analyze Selection
                     </button>
                   </div>
                 )}
@@ -552,111 +578,6 @@ export default function ResumeRewriter() {
         </div>
       )}
 
-      {/* Print Resume Area (hidden on screen via CSS, shown on window.print()) */}
-      {parsedSections && (
-        <div id="print-resume-area">
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <h1 style={{ fontSize: '22pt', fontWeight: 'bold', margin: '0 0 5px 0', textTransform: 'uppercase' }}>
-              {candidateName}
-            </h1>
-            <div style={{ fontSize: '10pt', color: '#111' }}>
-              {candidateEmail} &nbsp;|&nbsp; {candidatePhone} &nbsp;|&nbsp; {candidateLinks}
-            </div>
-          </div>
-
-          {parsedSections.education && parsedSections.education.length > 0 && (
-            <div style={{ marginBottom: '15px' }}>
-              <h2 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '3px', margin: '15px 0 8px 0', textTransform: 'uppercase', color: '#111' }}>
-                Education
-              </h2>
-              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '10.5pt', lineHeight: '1.4', color: '#111' }}>
-                {parsedSections.education.map((edu: string, i: number) => (
-                  <li key={i} style={{ marginBottom: '3px' }}>{edu}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {parsedSections.skills && parsedSections.skills.length > 0 && (
-            <div style={{ marginBottom: '15px' }}>
-              <h2 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '3px', margin: '15px 0 8px 0', textTransform: 'uppercase', color: '#111' }}>
-                Technical Skills
-              </h2>
-              <div style={{ fontSize: '10.5pt', lineHeight: '1.4', paddingLeft: '5px', color: '#111' }}>
-                {parsedSections.skills.join(', ')}
-              </div>
-            </div>
-          )}
-
-          {parsedSections.experience && parsedSections.experience.length > 0 && (
-            <div style={{ marginBottom: '15px' }}>
-              <h2 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '3px', margin: '15px 0 8px 0', textTransform: 'uppercase', color: '#111' }}>
-                Professional Experience
-              </h2>
-              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '10.5pt', lineHeight: '1.4', color: '#111' }}>
-                {parsedSections.experience.map((exp: string, i: number) => (
-                  <li key={i} style={{ marginBottom: '4px' }}>{exp}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {parsedSections.projects && parsedSections.projects.length > 0 && (
-            <div style={{ marginBottom: '15px' }}>
-              <h2 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '3px', margin: '15px 0 8px 0', textTransform: 'uppercase', color: '#111' }}>
-                Projects
-              </h2>
-              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '10.5pt', lineHeight: '1.4', color: '#111' }}>
-                {parsedSections.projects.map((proj: string, i: number) => (
-                  <li key={i} style={{ marginBottom: '4px' }}>{proj}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {parsedSections.achievements && parsedSections.achievements.length > 0 && (
-            <div style={{ marginBottom: '15px' }}>
-              <h2 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '3px', margin: '15px 0 8px 0', textTransform: 'uppercase', color: '#111' }}>
-                Achievements & Activities
-              </h2>
-              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '10.5pt', lineHeight: '1.4', color: '#111' }}>
-                {parsedSections.achievements.map((ach: string, i: number) => (
-                  <li key={i} style={{ marginBottom: '3px' }}>{ach}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <style>{`
-            @media screen {
-              #print-resume-area {
-                display: none !important;
-              }
-            }
-            @media print {
-              body * {
-                visibility: hidden !important;
-              }
-              #print-resume-area, #print-resume-area * {
-                visibility: visible !important;
-              }
-              #print-resume-area {
-                display: block !important;
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 100% !important;
-                color: black !important;
-                background: white !important;
-                font-family: 'Times New Roman', Times, serif !important;
-              }
-              header, aside, main, .no-print, button, nav {
-                display: none !important;
-              }
-            }
-          `}</style>
-        </div>
-      )}
     </div>
   );
 }

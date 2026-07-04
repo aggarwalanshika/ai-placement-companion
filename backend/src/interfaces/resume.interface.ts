@@ -24,9 +24,23 @@ export interface ProjectAnalysisItem {
   improved: string;
 }
 
+export interface WorkExperience {
+  role: string;
+  company: string;
+  date: string;
+  bullets: string[];
+}
+
+export interface ProjectEntry {
+  title: string;
+  techStack: string;
+  date: string;
+  bullets: string[];
+}
+
 export interface ParsedSections {
-  experience: string[];
-  projects: string[];
+  experience: WorkExperience[];
+  projects: ProjectEntry[];
   skills: string[];
   education: string[];
   achievements: string[];

@@ -21,25 +21,30 @@ export class BuilderService {
     originalSections: ParsedSections,
     acceptedSuggestions: Array<{
       section: keyof ParsedSections;
-      index: number;
+      entryIndex: number;
+      bulletIndex: number;
       newValue: string;
     }>
   ): ParsedSections {
     logger.info('Merging accepted suggestions into original parsed sections...');
-    const merged: ParsedSections = {
-      experience: [...(originalSections.experience || [])],
-      projects: [...(originalSections.projects || [])],
-      skills: [...(originalSections.skills || [])],
-      education: [...(originalSections.education || [])],
-      achievements: [...(originalSections.achievements || [])],
-    };
+    const merged: ParsedSections = JSON.parse(JSON.stringify(originalSections));
 
     if (acceptedSuggestions && Array.isArray(acceptedSuggestions)) {
       acceptedSuggestions.forEach((change) => {
-        const { section, index, newValue } = change;
-        if (merged[section] && Array.isArray(merged[section]) && merged[section][index] !== undefined) {
-          logger.info(`Merging section "${section}" at index ${index} with new value: "${newValue.substring(0, 30)}..."`);
-          merged[section][index] = newValue;
+        const { section, entryIndex, bulletIndex, newValue } = change;
+        if (merged[section] && Array.isArray(merged[section])) {
+          if (section === 'experience' || section === 'projects') {
+            const entry: any = merged[section][entryIndex];
+            if (entry && entry.bullets && Array.isArray(entry.bullets) && entry.bullets[bulletIndex] !== undefined) {
+              logger.info(`Merging section "${section}" at entry ${entryIndex}, bullet ${bulletIndex}`);
+              entry.bullets[bulletIndex] = newValue;
+            }
+          } else {
+            if (merged[section][entryIndex] !== undefined) {
+              logger.info(`Merging flat section "${section}" at index ${entryIndex}`);
+              merged[section][entryIndex] = newValue as any;
+            }
+          }
         }
       });
     }
@@ -49,6 +54,7 @@ export class BuilderService {
 
   /**
    * Strictly validate that no metadata or structural categories were deleted.
+   * Compares immutable fields (titles, companies, dates, tech stacks, skills) while ignoring bullet text.
    */
   public validateResumeStructure(original: ParsedSections, optimized: ParsedSections): string[] {
     const issues: string[] = [];
@@ -58,63 +64,81 @@ export class BuilderService {
       return issues;
     }
 
-    const checkHeadersPreserved = (sec: keyof ParsedSections, label: string) => {
-      const origList = original[sec] || [];
-      const optList = optimized[sec] || [];
-
-      origList.forEach((line) => {
-        const trimmed = line.trim();
-        // A header line does not start with bullet characters
-        const isHeader = trimmed.length > 0 &&
-                         !trimmed.startsWith('•') &&
-                         !trimmed.startsWith('-') &&
-                         !trimmed.startsWith('*');
-
-        if (isHeader) {
-          const cleanLine = trimmed.toLowerCase();
-          const found = optList.some(optLine => optLine.toLowerCase().includes(cleanLine) || cleanLine.includes(optLine.toLowerCase()));
-          if (!found) {
-            issues.push(`Preservation failed: ${label} header "${trimmed}" is missing.`);
-          }
-        }
-      });
+    const checkMatch = (origVal: string, optVal: string, label: string) => {
+      const o = (origVal || '').trim().toLowerCase();
+      const p = (optVal || '').trim().toLowerCase();
+      if (o && !p.includes(o) && !o.includes(p)) {
+        issues.push(`Preservation failed: ${label} ("${origVal}") was altered or removed.`);
+      }
     };
 
-    checkHeadersPreserved('experience', 'Experience');
-    checkHeadersPreserved('projects', 'Projects');
-    checkHeadersPreserved('education', 'Education');
-    checkHeadersPreserved('achievements', 'Achievements');
-
-    // Check dates preservation
-    const dateRegex = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December|Present)\s+\d{4}|\b\d{4}\s*-\s*(?:\d{4}|Present)\b|\b\d{4}\b/gi;
-    
-    const collectDates = (secMap: ParsedSections): Set<string> => {
-      const dates = new Set<string>();
-      Object.values(secMap).flat().forEach((str) => {
-        const matches = String(str).match(dateRegex);
-        if (matches) {
-          matches.forEach(m => dates.add(m.trim().toLowerCase()));
-        }
-      });
-      return dates;
-    };
-
-    const origDates = collectDates(original);
-    const optDates = collectDates(optimized);
-
-    origDates.forEach((date) => {
-      if (!optDates.has(date)) {
-        issues.push(`Date preservation failed: Timeline date "${date}" was removed.`);
+    // 1. Validate Experience metadata (role, company, date)
+    const origExp = original.experience || [];
+    const optExp = optimized.experience || [];
+    origExp.forEach((origEntry, idx) => {
+      const optEntry = optExp[idx];
+      if (!optEntry) {
+        issues.push(`Preservation failed: Work experience entry at index ${idx + 1} was removed.`);
+      } else {
+        checkMatch(origEntry.role, optEntry.role, `Experience role`);
+        checkMatch(origEntry.company, optEntry.company, `Experience organization`);
+        checkMatch(origEntry.date, optEntry.date, `Experience dates`);
       }
     });
 
-    // Check technical skills preservation
-    const origSkills = (original.skills || []).flatMap(s => s.split(/[,|]/)).map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
-    const optSkillsStr = (optimized.skills || []).join(' ').toLowerCase();
+    // 2. Validate Projects metadata (title, techStack, date)
+    const origProj = original.projects || [];
+    const optProj = optimized.projects || [];
+    origProj.forEach((origEntry, idx) => {
+      const optEntry = optProj[idx];
+      if (!optEntry) {
+        issues.push(`Preservation failed: Project entry at index ${idx + 1} was removed.`);
+      } else {
+        checkMatch(origEntry.title, optEntry.title, `Project title`);
+        checkMatch(origEntry.techStack, optEntry.techStack, `Project tech stack`);
+        checkMatch(origEntry.date, optEntry.date, `Project date`);
+      }
+    });
 
-    origSkills.forEach((skill) => {
-      if (!optSkillsStr.includes(skill)) {
-        issues.push(`Technical skill preservation failed: Skill tags "${skill}" were removed.`);
+    // 3. Validate Education (flat list check)
+    const origEdu = original.education || [];
+    const optEdu = optimized.education || [];
+    origEdu.forEach((origVal, idx) => {
+      const optVal = optEdu[idx];
+      if (!optVal) {
+        issues.push(`Preservation failed: Education credential "${origVal}" was removed.`);
+      } else {
+        checkMatch(origVal, optVal, `Education entry`);
+      }
+    });
+
+    // 4. Validate Achievements (flat list check)
+    const origAch = original.achievements || [];
+    const optAch = optimized.achievements || [];
+    origAch.forEach((origVal, idx) => {
+      const optVal = optAch[idx];
+      if (!optVal) {
+        issues.push(`Preservation failed: Achievement "${origVal}" was removed.`);
+      } else {
+        checkMatch(origVal, optVal, `Achievement entry`);
+      }
+    });
+
+    // 5. Validate Skills (all sub-skill tags must remain present)
+    const origSkills = original.skills || [];
+    const optSkills = optimized.skills || [];
+    origSkills.forEach((origVal, idx) => {
+      const optVal = optSkills[idx];
+      if (!optVal) {
+        issues.push(`Preservation failed: Technical skills segment was removed.`);
+      } else {
+        const origWords = origVal.split(/[,|]/).map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+        const optWordsStr = (optVal || '').toLowerCase();
+        origWords.forEach((word) => {
+          if (!optWordsStr.includes(word)) {
+            issues.push(`Technical skill preservation failed: Skill tag "${word}" was removed.`);
+          }
+        });
       }
     });
 
@@ -127,7 +151,6 @@ export class BuilderService {
   public async validateResume(resumeText: string, sections: ParsedSections): Promise<{ status: string; issues: string[] }> {
     logger.info('Running AI validation check on the merged resume sections...');
     
-    // Fallback if Gemini key is mock
     if (!process.env.GEMINI_API_KEY) {
       logger.info('Using mock AI validation fallback.');
       return {
@@ -165,7 +188,6 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
       const response = await model.generateContent(prompt);
       const text = response.response.text().trim();
       
-      // Clean possible json code blocks
       const cleanJson = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
       return JSON.parse(cleanJson);
     } catch (err: any) {
@@ -179,7 +201,7 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
 
   /**
    * Draw a beautifully formatted, single-page vector PDF resume using pdfkit.
-   * Header and bullet hierarchy are cleanly styled to align with professional templates.
+   * Handles structured Experience and Projects metadata outputs.
    */
   public generatePDF(resumeData: any, resStream: NodeJS.WritableStream): void {
     logger.info('Generating PDF stream for optimized resume export...');
@@ -196,45 +218,79 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
 
     const sections = resumeData.parsedSections || {};
 
-    const renderSection = (title: string, list: string[]) => {
+    const renderFlatSection = (title: string, list: string[]) => {
       if (!list || list.length === 0) return;
       
       doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#111111').text(title.toUpperCase());
-      
-      // Draw horizontal line divider
       const yLine = doc.y + 2;
       doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#cccccc').lineWidth(1).stroke();
       doc.moveDown(0.8);
 
+      doc.fontSize(10).font('Helvetica').fillColor('#222222');
       if (title.toLowerCase() === 'technical skills' || title.toLowerCase() === 'skills') {
-        doc.fontSize(10).font('Helvetica').fillColor('#222222');
         doc.text(list.join(', '), { align: 'left', lineGap: 3 });
-        doc.moveDown(1.2);
       } else {
         list.forEach((item) => {
-          const trimmed = item.trim();
-          const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*');
-          
-          if (isBullet) {
-            const cleanText = trimmed.replace(/^[•\-\*]\s*/, '').trim();
-            doc.fontSize(10).font('Helvetica').fillColor('#222222');
-            doc.text('•  ' + cleanText, { align: 'left', lineGap: 3, paragraphGap: 4, indent: 12 });
-          } else {
-            // Render header lines (company, project name, education, etc.) in Bold
-            doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#000000');
-            doc.text(trimmed, { align: 'left', lineGap: 2 });
-            doc.moveDown(0.2);
-          }
+          doc.text('•  ' + item.trim(), { align: 'left', lineGap: 3, paragraphGap: 4, indent: 12 });
         });
-        doc.moveDown(1.2);
       }
+      doc.moveDown(1.2);
     };
 
-    renderSection('Education', sections.education);
-    renderSection('Technical Skills', sections.skills);
-    renderSection('Professional Experience', sections.experience);
-    renderSection('Projects', sections.projects);
-    renderSection('Achievements & Activities', sections.achievements);
+    // Render Education
+    renderFlatSection('Education', sections.education);
+
+    // Render Skills
+    renderFlatSection('Technical Skills', sections.skills);
+
+    // Render Experience (Structured)
+    if (sections.experience && sections.experience.length > 0) {
+      doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#111111').text('PROFESSIONAL EXPERIENCE');
+      const yLine = doc.y + 2;
+      doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#cccccc').lineWidth(1).stroke();
+      doc.moveDown(0.8);
+
+      sections.experience.forEach((exp: any) => {
+        doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#000000');
+        doc.text(`${exp.role}  |  ${exp.company}  |  ${exp.date}`, { align: 'left', lineGap: 2 });
+        doc.moveDown(0.2);
+
+        doc.fontSize(10).font('Helvetica').fillColor('#222222');
+        if (exp.bullets && Array.isArray(exp.bullets)) {
+          exp.bullets.forEach((bullet: string) => {
+            doc.text('•  ' + bullet.trim(), { align: 'left', lineGap: 3, paragraphGap: 4, indent: 12 });
+          });
+        }
+        doc.moveDown(0.6);
+      });
+      doc.moveDown(0.6);
+    }
+
+    // Render Projects (Structured)
+    if (sections.projects && sections.projects.length > 0) {
+      doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#111111').text('PROJECTS');
+      const yLine = doc.y + 2;
+      doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#cccccc').lineWidth(1).stroke();
+      doc.moveDown(0.8);
+
+      sections.projects.forEach((proj: any) => {
+        doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#000000');
+        doc.text(`${proj.title}  |  ${proj.techStack}  |  ${proj.date}`, { align: 'left', lineGap: 2 });
+        doc.moveDown(0.2);
+
+        doc.fontSize(10).font('Helvetica').fillColor('#222222');
+        if (proj.bullets && Array.isArray(proj.bullets)) {
+          proj.bullets.forEach((bullet: string) => {
+            doc.text('•  ' + bullet.trim(), { align: 'left', lineGap: 3, paragraphGap: 4, indent: 12 });
+          });
+        }
+        doc.moveDown(0.6);
+      });
+      doc.moveDown(0.6);
+    }
+
+    // Render Achievements
+    renderFlatSection('Achievements & Activities', sections.achievements);
 
     doc.end();
   }
@@ -260,47 +316,51 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
 
     const sections = resumeData.parsedSections || {};
 
-    const renderWordSection = (title: string, list: string[]) => {
-      if (!list || list.length === 0) return '';
-      let sectHtml = `<h2>${title}</h2>`;
-      
-      if (title.toLowerCase() === 'technical skills' || title.toLowerCase() === 'skills') {
-        sectHtml += `<div style="padding-left: 5px;">${list.join(', ')}</div>`;
-        return sectHtml;
-      }
-
-      let inList = false;
-      list.forEach((item) => {
-        const trimmed = item.trim();
-        const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*');
-
-        if (isBullet) {
-          const cleanText = trimmed.replace(/^[•\-\*]\s*/, '').trim();
-          if (!inList) {
-            sectHtml += `<ul>`;
-            inList = true;
-          }
-          sectHtml += `<li>${cleanText}</li>`;
-        } else {
-          if (inList) {
-            sectHtml += `</ul>`;
-            inList = false;
-          }
-          sectHtml += `<div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #000000;">${trimmed}</div>`;
-        }
+    if (sections.education && sections.education.length > 0) {
+      html += `<h2>Education</h2><ul>`;
+      sections.education.forEach((edu: string) => {
+        html += `<li>${edu}</li>`;
       });
+      html += `</ul>`;
+    }
 
-      if (inList) {
-        sectHtml += `</ul>`;
-      }
-      return sectHtml;
-    };
+    if (sections.skills && sections.skills.length > 0) {
+      html += `<h2>Technical Skills</h2><div style="padding-left: 5px;">${sections.skills.join(', ')}</div>`;
+    }
 
-    html += renderWordSection('Education', sections.education);
-    html += renderWordSection('Technical Skills', sections.skills);
-    html += renderWordSection('Professional Experience', sections.experience);
-    html += renderWordSection('Projects', sections.projects);
-    html += renderWordSection('Achievements & Activities', sections.achievements);
+    if (sections.experience && sections.experience.length > 0) {
+      html += `<h2>Professional Experience</h2>`;
+      sections.experience.forEach((exp: any) => {
+        html += `<div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #000000;">${exp.role} &nbsp;|&nbsp; ${exp.company} &nbsp;|&nbsp; ${exp.date}</div><ul>`;
+        if (exp.bullets && Array.isArray(exp.bullets)) {
+          exp.bullets.forEach((bullet: string) => {
+            html += `<li>${bullet}</li>`;
+          });
+        }
+        html += `</ul>`;
+      });
+    }
+
+    if (sections.projects && sections.projects.length > 0) {
+      html += `<h2>Projects</h2>`;
+      sections.projects.forEach((proj: any) => {
+        html += `<div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #000000;">${proj.title} &nbsp;|&nbsp; ${proj.techStack} &nbsp;|&nbsp; ${proj.date}</div><ul>`;
+        if (proj.bullets && Array.isArray(proj.bullets)) {
+          proj.bullets.forEach((bullet: string) => {
+            html += `<li>${bullet}</li>`;
+          });
+        }
+        html += `</ul>`;
+      });
+    }
+
+    if (sections.achievements && sections.achievements.length > 0) {
+      html += `<h2>Achievements & Activities</h2><ul>`;
+      sections.achievements.forEach((ach: string) => {
+        html += `<li>${ach}</li>`;
+      });
+      html += `</ul>`;
+    }
 
     html += `</body></html>`;
     return html;
