@@ -1,88 +1,137 @@
-# AI Resume Copilot & Placement Companion
+# 🚀 AI Resume Copilot
 
-An advanced AI-powered placement preparation and resume optimization platform designed for entry-level and junior Software Development Engineers (SDEs). The platform parses candidate resumes, runs comprehensive ATS analysis with Gemini, allows bullet point optimization, manages saved versions, and generates standard ATS-compliant PDF and Word documents.
-
----
-
-## Features
-
-- **ATS Resume Analyzer**: Automatically parses PDF/DOCX resumes and computes real-time scores across experience, projects, education, and technical categories.
-- **AI-Powered Bullet Optimizer**: Highlights placement-critical verbs and metrics, suggesting context-specific Gemini rewrites that the user can accept or reject.
-- **SDE ATS Layout Generator**: Automatically compiles a clean, professional, single-column, recruiter-friendly PDF or Word (.docx) document from structured profile data.
-- **Local Version Control**: Logs saved revisions, keeps an interactive undo/redo stack, and supports rolling back to or re-scanning any previous version.
-- **Production Auth System**: Protects private workspace panels with JWT cookies, silent-token refreshes, and secure registration.
+AI Resume Copilot is a full-stack web application that helps students and job seekers improve their resumes using Google's Gemini AI. It analyzes resumes for ATS compatibility, provides AI-powered rewrite suggestions, tracks multiple resume versions, and generates ATS-friendly PDF and DOCX resumes.
 
 ---
 
-## Technical Stack
+## ✨ Features
 
-### Backend
-- **Node.js & Express**: Extensible API routing and middleware pipelines in TypeScript.
-- **Prisma ORM & PostgreSQL**: Structured data persistence and user storage.
-- **PDFKit & docx**: High-fidelity native builders generating true binary PDF and DOCX attachments.
-- **Google Generative AI**: Gemini models powering resume audits and SDE re-writes.
+### 📄 Resume Analysis
+- Upload resumes in PDF format
+- Extract and parse resume content
+- AI-powered ATS score generation
+- Section-wise feedback (Skills, Projects, Experience, Education)
+- Resume summary and improvement suggestions
 
-### Frontend
-- **React & TypeScript**: Interactive state-driven user interfaces.
-- **Zustand & localStorage**: Persisted client-side state engines.
-- **Tailwind CSS & Framer Motion**: Sleek glassmorphism style rules and micro-animations.
+### 🤖 AI Resume Rewriter
+- Rewrite individual resume bullet points using Gemini AI
+- Accept or reject AI suggestions
+- Live preview of rewritten content
+- Version history with Undo/Redo support
+
+### 📑 Resume Generation
+- Generate professional ATS-friendly resumes
+- Export as PDF and DOCX
+- Preserve accepted AI improvements
+- Resume preview before download
+
+### 💼 Job Description Matching
+- Compare resume against a job description
+- Match score generation
+- Missing skills detection
+- Keyword gap analysis
+- Personalized improvement suggestions
+
+### 🔐 Authentication
+- User registration and login
+- JWT-based authentication
+- Protected dashboard routes
 
 ---
 
-## Environment Variables
+# 🛠 Tech Stack
 
-Create a `.env` file inside the `backend/` directory:
+## Frontend
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Zustand
+- Framer Motion
+- Axios
+
+## Backend
+
+- Node.js
+- Express
+- TypeScript
+- Prisma ORM
+- SQLite (Development)
+- Google Gemini API
+- PDFKit
+- docx
+
+---
+
+# 📂 Project Structure
+
+```
+AI-Resume-Copilot
+│
+├── backend
+│   ├── controllers
+│   ├── routes
+│   ├── services
+│   ├── middleware
+│   ├── prisma
+│   └── utils
+│
+├── frontend
+│   ├── components
+│   ├── pages
+│   ├── store
+│   ├── hooks
+│   └── assets
+│
+└── README.md
+```
+
+---
+
+# ⚙️ Environment Variables
+
+## Backend (.env)
 
 ```env
 PORT=5000
-DATABASE_URL="postgresql://user:password@localhost:5432/db_name"
-GEMINI_API_KEY="your-google-gemini-api-key"
-JWT_SECRET="your-jwt-auth-session-key"
-NODE_ENV="development"
+DATABASE_URL=...
+JWT_SECRET=...
+GEMINI_API_KEY=...
 ```
 
-Create a `.env` file inside the `frontend/` directory:
+## Frontend (.env)
 
 ```env
-VITE_API_URL="http://localhost:5000/api"
+VITE_API_URL=http://localhost:5000/api
 ```
 
 ---
 
-## Installation & Setup
+# 🚀 Installation
 
-### 1. Install Dependencies
-Run the install command from the monorepo root folder:
+Clone the repository
+
+```bash
+git clone <repository-url>
+cd ai-placement-companion
+```
+
+Install dependencies
+
 ```bash
 npm install
 ```
 
-### 2. Boot Local Infrastructure
-Ensure Docker is running and spin up database containers:
-```bash
-docker-compose up -d
-```
+Run backend
 
-### 3. Run Database Migrations
-Initialize Prisma schema mappings inside the PostgreSQL container:
-```bash
-cd backend
-npx prisma migrate dev
-```
-
----
-
-## Running the Application
-
-### Running Backend API
-Start the backend development environment (runs on `http://localhost:5000`):
 ```bash
 cd backend
 npm run dev
 ```
 
-### Running Frontend SPA
-Start the client server (runs on `http://localhost:3000`):
+Run frontend
+
 ```bash
 cd frontend
 npm run dev
@@ -90,8 +139,52 @@ npm run dev
 
 ---
 
-## Future Improvements
+# 🧠 How It Works
 
-- **Interactive DSA Preparation Module**: Tailored code practice challenges synchronized with resume skills gaps.
-- **Mock Technical Interviews**: AI-driven audio/video mock sessions with real-time feedback loops.
-- **Multi-template Layout Engine**: Additional recruiter-approved styling layouts for PDF and Word exports.
+1. User uploads a resume.
+2. Resume text is extracted and parsed.
+3. Gemini analyzes the resume and generates:
+   - ATS score
+   - Missing skills
+   - Strengths
+   - Weaknesses
+   - Resume summary
+4. User rewrites selected bullet points using AI.
+5. Accepted changes are stored in version history.
+6. A new ATS-friendly resume is generated and exported as PDF or DOCX.
+
+---
+
+# 📸 Screenshots
+
+> Add screenshots here
+
+- Landing Page
+- Dashboard
+- Resume Analyzer
+- Resume Rewriter
+- Resume Preview
+- Job Matcher
+
+---
+
+# 🎯 Future Improvements
+
+- Resume templates with multiple layouts
+- LinkedIn profile import
+- Cover letter generation
+- Mock interview assistant
+- Company-specific ATS optimization
+- Resume sharing with public links
+
+---
+
+# 👨‍💻 Author
+
+**Anshika Aggarwal**
+
+B.Tech Computer Science | Jaypee Institute of Information Technology
+
+---
+
+# ⭐ If you found this project useful, consider giving it a star!
