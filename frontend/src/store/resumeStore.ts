@@ -40,6 +40,8 @@ export interface ResumeVersion {
   ignoredCount: number;
   userNotes?: string;
   parsedSections: ParsedSections;
+  fileName: string;
+  resumeText: string;
 }
 
 interface ResumeState {
@@ -572,6 +574,18 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       ...analysis,
       parsedSections: parsed,
     };
+
+    const version1: ResumeVersion = {
+      id: 'version-1',
+      timestamp: new Date().toLocaleString(),
+      atsScore: analysis?.overallScore || 70,
+      acceptedCount: 0,
+      ignoredCount: 0,
+      userNotes: 'Original Uploaded Resume',
+      parsedSections: JSON.parse(JSON.stringify(parsed)),
+      fileName: fileName,
+      resumeText: text,
+    };
     
     try {
       localStorage.setItem(
@@ -581,7 +595,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           resumeFileName: fileName,
           analysisResult: analysisWithSections,
           originalSections: parsed,
-          versions: [],
+          versions: [version1],
           candidateName: name,
           candidateEmail: email,
           candidatePhone: phone,
@@ -597,7 +611,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       resumeFileName: fileName,
       analysisResult: analysisWithSections,
       originalSections: parsed,
-      versions: [],
+      versions: [version1],
       candidateName: name,
       candidateEmail: email,
       candidatePhone: phone,
@@ -827,6 +841,8 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       ignoredCount,
       userNotes: notes || `Revision ${versions.length + 1}`,
       parsedSections: JSON.parse(JSON.stringify(curr)),
+      fileName: resumeFileName || 'optimized_resume.pdf',
+      resumeText: resumeText || '',
     };
 
     const newVersionsList = [...versions, newVersion];

@@ -3,6 +3,7 @@ import { parsePdf } from '../utils/pdfParser.js';
 import { ResumeAnalysisResult } from '../interfaces/resume.interface.js';
 import { AppError } from '../utils/appError.js';
 import { logger } from '../utils/logger.js';
+import fs from 'fs';
 
 /**
  * Deterministically parse experience, projects, skills, education, and achievements
@@ -256,14 +257,18 @@ export class ResumeService {
   public async analyzeResume(filePath: string): Promise<ResumeAnalysisResult> {
     let textContent: string;
     try {
-      textContent = await parsePdf(filePath);
+      if (filePath.toLowerCase().endsWith('.txt')) {
+        textContent = fs.readFileSync(filePath, 'utf-8');
+      } else {
+        textContent = await parsePdf(filePath);
+      }
     } catch (err: any) {
-      logger.error(`PDF parsing failed: ${err.message}`);
-      throw new AppError(`Failed to parse PDF resume: ${err.message}`, 400);
+      logger.error(`File parsing failed: ${err.message}`);
+      throw new AppError(`Failed to parse resume file: ${err.message}`, 400);
     }
 
     if (!textContent || textContent.length < 50) {
-      throw new AppError('The uploaded resume PDF contains insufficient text or is empty.', 400);
+      throw new AppError('The uploaded resume contains insufficient text or is empty.', 400);
     }
 
     logger.info(`Extracted Resume Text Length: ${textContent.length} characters`);

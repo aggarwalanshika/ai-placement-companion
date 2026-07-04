@@ -71,6 +71,7 @@ interface ResumeAnalysisResult {
 export default function ResumeAnalyzer() {
   const navigate = useNavigate();
   const setResumeStoreData = useResumeStore((state) => state.setResumeData);
+  const versions = useResumeStore((state) => state.versions) || [];
 
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -463,18 +464,18 @@ export default function ResumeAnalyzer() {
                   <FileText className="w-4 h-4 text-blue-400" /> Recent Uploads
                 </h3>
                 <div className="space-y-3 text-xs">
-                  {[
-                    { name: 'Software_Engineer_Resume_John.pdf', score: 87, date: 'Just now' },
-                    { name: 'Software_Engineer_Resume_V2.pdf', score: 82, date: '1 day ago' },
-                    { name: 'Software_Engineer_Resume_V1.pdf', score: 74, date: '4 days ago' }
-                  ].map((hist, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-950/40 border border-slate-900 rounded-lg">
-                      <span className="text-slate-400 flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer">
-                        <FileText className="w-3.5 h-3.5 text-blue-400" /> {hist.name}
-                      </span>
-                      <span className="font-semibold text-green-400 font-mono bg-green-950/40 px-2 py-0.5 rounded border border-green-900/60">{hist.score}%</span>
-                    </div>
-                  ))}
+                  {versions.length === 0 ? (
+                    <span className="text-slate-500 italic block py-2">No recent uploads yet.</span>
+                  ) : (
+                    versions.map((hist, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-950/40 border border-slate-900 rounded-lg">
+                        <span className="text-slate-400 flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer">
+                          <FileText className="w-3.5 h-3.5 text-blue-400" /> {hist.fileName || 'resume.pdf'}
+                        </span>
+                        <span className="font-semibold text-green-400 font-mono bg-green-950/40 px-2 py-0.5 rounded border border-green-900/60">{hist.atsScore}%</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
