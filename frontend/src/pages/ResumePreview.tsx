@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { useResumeStore, ParsedSections, WorkExperience, ProjectEntry } from '../store/resumeStore.js';
+import { useResumeStore, ParsedSections, WorkExperience, ProjectEntry, normalizeParsedSections } from '../store/resumeStore.js';
 import {
   Sparkles,
   ArrowRight,
@@ -99,6 +99,9 @@ export default function ResumePreview() {
     const issues: string[] = [];
     if (!opt || !orig) return ['Resume sections are missing.'];
 
+    const normOrig = normalizeParsedSections(orig);
+    const normOpt = normalizeParsedSections(opt);
+
     const checkMatch = (origVal: string, optVal: string, label: string) => {
       const o = (origVal || '').trim().toLowerCase();
       const p = (optVal || '').trim().toLowerCase();
@@ -108,8 +111,8 @@ export default function ResumePreview() {
     };
 
     // 1. Validate Experience metadata (role, company, date)
-    const origExp = orig.experience || [];
-    const optExp = opt.experience || [];
+    const origExp = normOrig.experience || [];
+    const optExp = normOpt.experience || [];
     origExp.forEach((origEntry, idx) => {
       const optEntry = optExp[idx];
       if (!optEntry) {
@@ -122,8 +125,8 @@ export default function ResumePreview() {
     });
 
     // 2. Validate Projects metadata (title, techStack, date)
-    const origProj = orig.projects || [];
-    const optProj = opt.projects || [];
+    const origProj = normOrig.projects || [];
+    const optProj = normOpt.projects || [];
     origProj.forEach((origEntry, idx) => {
       const optEntry = optProj[idx];
       if (!optEntry) {

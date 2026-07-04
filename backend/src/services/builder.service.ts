@@ -15,6 +15,105 @@ export class BuilderService {
   }
 
   /**
+   * Active Format Normalizer ensuring experience and projects lists are always structured objects
+   * with clean SDE aligned property names.
+   */
+  public normalizeParsedSections(parsed: any): ParsedSections {
+    const normalized: ParsedSections = {
+      experience: [],
+      projects: [],
+      skills: Array.isArray(parsed?.skills) ? parsed.skills : [],
+      education: Array.isArray(parsed?.education) ? parsed.education : [],
+      achievements: Array.isArray(parsed?.achievements) ? parsed.achievements : [],
+    };
+
+    if (!parsed) return normalized;
+
+    // Normalize experience
+    if (Array.isArray(parsed.experience)) {
+      let currentExp: any = null;
+      parsed.experience.forEach((item: any) => {
+        if (item && typeof item === 'object' && ('role' in item || 'company' in item)) {
+          normalized.experience.push({
+            role: item.role || 'Role',
+            company: item.company || 'Organization',
+            date: item.date || 'Date',
+            bullets: Array.isArray(item.bullets) ? item.bullets : []
+          });
+        } else if (typeof item === 'string') {
+          const trimmed = item.trim();
+          const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*');
+          if (isBullet && currentExp) {
+            currentExp.bullets.push(trimmed.replace(/^[•\-\*]\s*/, '').trim());
+          } else {
+            let role = trimmed;
+            let company = 'Organization';
+            let date = 'Date';
+
+            if (trimmed.includes(' at ')) {
+              const parts = trimmed.split(' at ');
+              role = parts[0].trim();
+              const rest = parts[1];
+              if (rest.includes('(')) {
+                company = rest.split('(')[0].trim();
+                const dateMatch = rest.match(/\(([^)]+)\)/);
+                if (dateMatch) date = dateMatch[1].trim();
+              } else {
+                company = rest.trim();
+              }
+            } else if (trimmed.includes('|')) {
+              const parts = trimmed.split('|');
+              role = parts[0].trim();
+              company = parts[1].trim();
+              if (parts[2]) date = parts[2].trim();
+            }
+
+            currentExp = { role, company, date, bullets: [] };
+            normalized.experience.push(currentExp);
+          }
+        }
+      });
+    }
+
+    // Normalize projects
+    if (Array.isArray(parsed.projects)) {
+      let currentProj: any = null;
+      parsed.projects.forEach((item: any) => {
+        if (item && typeof item === 'object' && ('title' in item || 'techStack' in item)) {
+          normalized.projects.push({
+            title: item.title || 'Project Title',
+            techStack: item.techStack || 'Tech Stack',
+            date: item.date || 'Date',
+            bullets: Array.isArray(item.bullets) ? item.bullets : []
+          });
+        } else if (typeof item === 'string') {
+          const trimmed = item.trim();
+          const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*');
+          if (isBullet && currentProj) {
+            currentProj.bullets.push(trimmed.replace(/^[•\-\*]\s*/, '').trim());
+          } else {
+            let title = trimmed;
+            let techStack = 'Technologies';
+            let date = 'Date';
+
+            if (trimmed.includes('|')) {
+              const parts = trimmed.split('|');
+              title = parts[0].trim();
+              techStack = parts[1].trim();
+              if (parts[2]) date = parts[2].trim();
+            }
+
+            currentProj = { title, techStack, date, bullets: [] };
+            normalized.projects.push(currentProj);
+          }
+        }
+      });
+    }
+
+    return normalized;
+  }
+
+  /**
    * Merge only the accepted modifications into the original parsed sections.
    */
   public mergeResumeChanges(
@@ -27,7 +126,8 @@ export class BuilderService {
     }>
   ): ParsedSections {
     logger.info('Merging accepted suggestions into original parsed sections...');
-    const merged: ParsedSections = JSON.parse(JSON.stringify(originalSections));
+    const normOriginal = this.normalizeParsedSections(originalSections);
+    const merged: ParsedSections = JSON.parse(JSON.stringify(normOriginal));
 
     if (acceptedSuggestions && Array.isArray(acceptedSuggestions)) {
       acceptedSuggestions.forEach((change) => {
@@ -54,7 +154,6 @@ export class BuilderService {
 
   /**
    * Strictly validate that no metadata or structural categories were deleted.
-   * Compares immutable fields (titles, companies, dates, tech stacks, skills) while ignoring bullet text.
    */
   public validateResumeStructure(original: ParsedSections, optimized: ParsedSections): string[] {
     const issues: string[] = [];
@@ -63,6 +162,10 @@ export class BuilderService {
       issues.push("Original or optimized sections are missing.");
       return issues;
     }
+
+    // Active normalize structures first
+    const normOriginal = this.normalizeParsedSections(original);
+    const normOptimized = this.normalizeParsedSections(optimized);
 
     const checkMatch = (origVal: string, optVal: string, label: string) => {
       const o = (origVal || '').trim().toLowerCase();
@@ -73,8 +176,8 @@ export class BuilderService {
     };
 
     // 1. Validate Experience metadata (role, company, date)
-    const origExp = original.experience || [];
-    const optExp = optimized.experience || [];
+    const origExp = normOriginal.experience || [];
+    const optExp = normOptimized.experience || [];
     origExp.forEach((origEntry, idx) => {
       const optEntry = optExp[idx];
       if (!optEntry) {
@@ -87,8 +190,8 @@ export class BuilderService {
     });
 
     // 2. Validate Projects metadata (title, techStack, date)
-    const origProj = original.projects || [];
-    const optProj = optimized.projects || [];
+    const origProj = normOriginal.projects || [];
+    const optProj = normOptimized.projects || [];
     origProj.forEach((origEntry, idx) => {
       const optEntry = optProj[idx];
       if (!optEntry) {
@@ -100,9 +203,9 @@ export class BuilderService {
       }
     });
 
-    // 3. Validate Education (flat list check)
-    const origEdu = original.education || [];
-    const optEdu = optimized.education || [];
+    // 3. Validate Education
+    const origEdu = normOriginal.education || [];
+    const optEdu = normOptimized.education || [];
     origEdu.forEach((origVal, idx) => {
       const optVal = optEdu[idx];
       if (!optVal) {
@@ -112,9 +215,9 @@ export class BuilderService {
       }
     });
 
-    // 4. Validate Achievements (flat list check)
-    const origAch = original.achievements || [];
-    const optAch = optimized.achievements || [];
+    // 4. Validate Achievements
+    const origAch = normOriginal.achievements || [];
+    const optAch = normOptimized.achievements || [];
     origAch.forEach((origVal, idx) => {
       const optVal = optAch[idx];
       if (!optVal) {
@@ -124,9 +227,9 @@ export class BuilderService {
       }
     });
 
-    // 5. Validate Skills (all sub-skill tags must remain present)
-    const origSkills = original.skills || [];
-    const optSkills = optimized.skills || [];
+    // 5. Validate Skills (all skill sub-tags preserved)
+    const origSkills = normOriginal.skills || [];
+    const optSkills = normOptimized.skills || [];
     origSkills.forEach((origVal, idx) => {
       const optVal = optSkills[idx];
       if (!optVal) {
@@ -150,6 +253,7 @@ export class BuilderService {
    */
   public async validateResume(resumeText: string, sections: ParsedSections): Promise<{ status: string; issues: string[] }> {
     logger.info('Running AI validation check on the merged resume sections...');
+    const normSections = this.normalizeParsedSections(sections);
     
     if (!process.env.GEMINI_API_KEY) {
       logger.info('Using mock AI validation fallback.');
@@ -169,7 +273,7 @@ Original parsed text guidelines:
 ${resumeText}
 
 Proposed sections to export:
-${JSON.stringify(sections, null, 2)}
+${JSON.stringify(normSections, null, 2)}
 
 If the sections contain duplicate technical skills, repeated phrases in bullets, grammar mistakes, or miss contact channels, respond exactly with this JSON format:
 {
@@ -201,14 +305,13 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
 
   /**
    * Draw a beautifully formatted, single-page vector PDF resume using pdfkit.
-   * Handles structured Experience and Projects metadata outputs.
+   * Aligned to clean SDE templates.
    */
   public generatePDF(resumeData: any, resStream: NodeJS.WritableStream): void {
     logger.info('Generating PDF stream for optimized resume export...');
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
     doc.pipe(resStream);
 
-    // 1. Centered Header
     doc.fontSize(22).font('Helvetica-Bold').text(resumeData.name || 'Anonymous', { align: 'center' });
     doc.moveDown(0.2);
 
@@ -216,7 +319,8 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     doc.fontSize(9.5).font('Helvetica').fillColor('#333333').text(contactStr, { align: 'center' });
     doc.moveDown(1.5);
 
-    const sections = resumeData.parsedSections || {};
+    const rawSections = resumeData.parsedSections || {};
+    const sections = this.normalizeParsedSections(rawSections);
 
     const renderFlatSection = (title: string, list: string[]) => {
       if (!list || list.length === 0) return;
@@ -251,8 +355,12 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
       doc.moveDown(0.8);
 
       sections.experience.forEach((exp: any) => {
+        const role = exp.role || 'Role';
+        const company = exp.company || 'Organization';
+        const date = exp.date || 'Date';
+
         doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#000000');
-        doc.text(`${exp.role}  |  ${exp.company}  |  ${exp.date}`, { align: 'left', lineGap: 2 });
+        doc.text(`${role}  |  ${company}  |  ${date}`, { align: 'left', lineGap: 2 });
         doc.moveDown(0.2);
 
         doc.fontSize(10).font('Helvetica').fillColor('#222222');
@@ -274,8 +382,12 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
       doc.moveDown(0.8);
 
       sections.projects.forEach((proj: any) => {
+        const title = proj.title || 'Project Title';
+        const techStack = proj.techStack || 'Tech Stack';
+        const date = proj.date || 'Date';
+
         doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#000000');
-        doc.text(`${proj.title}  |  ${proj.techStack}  |  ${proj.date}`, { align: 'left', lineGap: 2 });
+        doc.text(`${title}  |  ${techStack}  |  ${date}`, { align: 'left', lineGap: 2 });
         doc.moveDown(0.2);
 
         doc.fontSize(10).font('Helvetica').fillColor('#222222');
@@ -314,7 +426,8 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     html += `<h1>${resumeData.name || 'Anonymous'}</h1>`;
     html += `<div class="contact">${resumeData.email || ''} | ${resumeData.phone || ''} | ${resumeData.links || ''}</div>`;
 
-    const sections = resumeData.parsedSections || {};
+    const rawSections = resumeData.parsedSections || {};
+    const sections = this.normalizeParsedSections(rawSections);
 
     if (sections.education && sections.education.length > 0) {
       html += `<h2>Education</h2><ul>`;
@@ -331,7 +444,11 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     if (sections.experience && sections.experience.length > 0) {
       html += `<h2>Professional Experience</h2>`;
       sections.experience.forEach((exp: any) => {
-        html += `<div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #000000;">${exp.role} &nbsp;|&nbsp; ${exp.company} &nbsp;|&nbsp; ${exp.date}</div><ul>`;
+        const role = exp.role || 'Role';
+        const company = exp.company || 'Organization';
+        const date = exp.date || 'Date';
+        
+        html += `<div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #000000;">${role} &nbsp;|&nbsp; ${company} &nbsp;|&nbsp; ${date}</div><ul>`;
         if (exp.bullets && Array.isArray(exp.bullets)) {
           exp.bullets.forEach((bullet: string) => {
             html += `<li>${bullet}</li>`;
@@ -344,7 +461,11 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     if (sections.projects && sections.projects.length > 0) {
       html += `<h2>Projects</h2>`;
       sections.projects.forEach((proj: any) => {
-        html += `<div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #000000;">${proj.title} &nbsp;|&nbsp; ${proj.techStack} &nbsp;|&nbsp; ${proj.date}</div><ul>`;
+        const title = proj.title || 'Project Title';
+        const techStack = proj.techStack || 'Tech Stack';
+        const date = proj.date || 'Date';
+
+        html += `<div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #000000;">${title} &nbsp;|&nbsp; ${techStack} &nbsp;|&nbsp; ${date}</div><ul>`;
         if (proj.bullets && Array.isArray(proj.bullets)) {
           proj.bullets.forEach((bullet: string) => {
             html += `<li>${bullet}</li>`;

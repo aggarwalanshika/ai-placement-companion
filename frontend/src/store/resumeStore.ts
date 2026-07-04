@@ -63,6 +63,123 @@ interface ResumeState {
   setContactInfo: (name: string, email: string, phone: string, links: string) => void;
 }
 
+/**
+ * Robustly normalize parsed sections to guarantee experiences and projects
+ * are always structured objects with aligned property names.
+ */
+export function normalizeParsedSections(parsed: any): ParsedSections {
+  const normalized: ParsedSections = {
+    experience: [],
+    projects: [],
+    skills: Array.isArray(parsed?.skills) ? parsed.skills : [],
+    education: Array.isArray(parsed?.education) ? parsed.education : [],
+    achievements: Array.isArray(parsed?.achievements) ? parsed.achievements : [],
+  };
+
+  if (!parsed) return normalized;
+
+  // Normalize experience
+  if (Array.isArray(parsed.experience)) {
+    let currentExp: WorkExperience | null = null;
+    parsed.experience.forEach((item: any) => {
+      if (item && typeof item === 'object' && ('role' in item || 'company' in item)) {
+        normalized.experience.push({
+          role: item.role || 'Role',
+          company: item.company || 'Organization',
+          date: item.date || 'Date',
+          bullets: Array.isArray(item.bullets) ? item.bullets : []
+        });
+      } else if (typeof item === 'string') {
+        const trimmed = item.trim();
+        const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*');
+        if (isBullet && currentExp) {
+          currentExp.bullets.push(trimmed.replace(/^[•\-\*]\s*/, '').trim());
+        } else {
+          let role = trimmed;
+          let company = 'Organization';
+          let date = 'Date';
+
+          if (trimmed.includes(' at ')) {
+            const parts = trimmed.split(' at ');
+            role = parts[0].trim();
+            const rest = parts[1];
+            if (rest.includes('(')) {
+              company = rest.split('(')[0].trim();
+              const dateMatch = rest.match(/\(([^)]+)\)/);
+              if (dateMatch) date = dateMatch[1].trim();
+            } else {
+              company = rest.trim();
+            }
+          } else if (trimmed.includes('|')) {
+            const parts = trimmed.split('|');
+            role = parts[0].trim();
+            company = parts[1].trim();
+            if (parts[2]) date = parts[2].trim();
+          }
+
+          currentExp = { role, company, date, bullets: [] };
+          normalized.experience.push(currentExp);
+        }
+      }
+    });
+  }
+
+  // Normalize projects
+  if (Array.isArray(parsed.projects)) {
+    let currentProj: ProjectEntry | null = null;
+    parsed.projects.forEach((item: any) => {
+      if (item && typeof item === 'object' && ('title' in item || 'techStack' in item)) {
+        normalized.projects.push({
+          title: item.title || 'Project Title',
+          techStack: item.techStack || 'Tech Stack',
+          date: item.date || 'Date',
+          bullets: Array.isArray(item.bullets) ? item.bullets : []
+        });
+      } else if (typeof item === 'string') {
+        const trimmed = item.trim();
+        const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*');
+        if (isBullet && currentProj) {
+          currentProj.bullets.push(trimmed.replace(/^[•\-\*]\s*/, '').trim());
+        } else {
+          let title = trimmed;
+          let techStack = 'Technologies';
+          let date = 'Date';
+
+          if (trimmed.includes('|')) {
+            const parts = trimmed.split('|');
+            title = parts[0].trim();
+            techStack = parts[1].trim();
+            if (parts[2]) date = parts[2].trim();
+          }
+
+          currentProj = { title, techStack, date, bullets: [] };
+          normalized.projects.push(currentProj);
+        }
+      }
+    });
+  }
+
+  // Fallbacks if lists remain empty
+  if (normalized.experience.length === 0) {
+    normalized.experience.push({
+      role: 'Software Engineer',
+      company: 'TechCorp',
+      date: '2023 - Present',
+      bullets: ['Developed features using React and Node.js.']
+    });
+  }
+  if (normalized.projects.length === 0) {
+    normalized.projects.push({
+      title: 'Portfolio Website',
+      techStack: 'HTML | CSS',
+      date: '2024',
+      bullets: ['Created interactive portfolio website.']
+    });
+  }
+
+  return normalized;
+}
+
 // Client-side text parsing helper to split plain text into structured resume sections
 function parseSectionsFromText(text: string): ParsedSections {
   const sections: ParsedSections = {
@@ -113,8 +230,7 @@ function parseSectionsFromText(text: string): ParsedSections {
         if (isBullet && sections.experience.length > 0) {
           sections.experience[sections.experience.length - 1].bullets.push(cleanLine);
         } else {
-          // Parse Header (e.g. "Software Engineer at TechCorp")
-          let company = 'TechCorp';
+          let company = 'Organization';
           let role = cleanLine;
           if (cleanLine.includes(' at ')) {
             const parts = cleanLine.split(' at ');
@@ -133,7 +249,6 @@ function parseSectionsFromText(text: string): ParsedSections {
         if (isBullet && sections.projects.length > 0) {
           sections.projects[sections.projects.length - 1].bullets.push(cleanLine);
         } else {
-          // Parse Header (e.g. "ML Pipeline | Python")
           let title = cleanLine;
           let techStack = 'JavaScript';
           if (cleanLine.includes('|')) {
@@ -186,12 +301,21 @@ const loadSavedState = () => {
     const saved = localStorage.getItem('resume-copilot-data');
     if (saved) {
       const parsed = JSON.parse(saved);
+      const normalizedOriginal = normalizeParsedSections(parsed.originalSections);
+      const normalizedAnalysis = parsed.analysisResult ? {
+        ...parsed.analysisResult,
+        parsedSections: normalizeParsedSections(parsed.analysisResult.parsedSections)
+      } : null;
+
       return {
         resumeText: parsed.resumeText || null,
         resumeFileName: parsed.resumeFileName || null,
-        analysisResult: parsed.analysisResult || null,
-        originalSections: parsed.originalSections || null,
-        versions: parsed.versions || [],
+        analysisResult: normalizedAnalysis,
+        originalSections: normalizedOriginal,
+        versions: (parsed.versions || []).map((v: any) => ({
+          ...v,
+          parsedSections: normalizeParsedSections(v.parsedSections)
+        })),
         candidateName: parsed.candidateName || 'Anshika Aggarwal',
         candidateEmail: parsed.candidateEmail || 'aggarwalanshika4@gmail.com',
         candidatePhone: parsed.candidatePhone || '+91-8707881770',
@@ -230,9 +354,9 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   future: [],
 
   setResumeData: (text, fileName, analysis) => {
-    let parsed = analysis.parsedSections;
+    let parsed = normalizeParsedSections(analysis.parsedSections);
     
-    if (!parsed || !parsed.experience || (parsed.experience.length === 0 && parsed.projects.length === 0)) {
+    if (!parsed || parsed.experience.length === 0) {
       parsed = parseSectionsFromText(text);
     }
 
