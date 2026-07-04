@@ -402,7 +402,11 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     buildReplacements(origSections.experience, optSections.experience);
     buildReplacements(origSections.projects, optSections.projects);
 
-    doc.fontSize(10).font('Helvetica').fillColor('#111111');
+    const roles = new Set((origSections.experience || []).map((e: any) => (e.role || '').trim().toLowerCase()));
+    const companies = new Set((origSections.experience || []).map((e: any) => (e.company || '').trim().toLowerCase()));
+    const projTitles = new Set((origSections.projects || []).map((p: any) => (p.title || '').trim().toLowerCase()));
+
+    doc.fontSize(9.5).font('Helvetica').fillColor('#222222');
     const lines = originalText.split('\n');
     
     lines.forEach((line) => {
@@ -414,29 +418,31 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
 
       const cleanLine = trimmed.replace(/^[•\-\*]\s*/, '').trim().toLowerCase();
       let textToPrint = line;
-      let isReplaced = false;
 
       if (replacements.has(cleanLine)) {
         const replacement = replacements.get(cleanLine)!;
         const bulletMatch = line.match(/^\s*([•\-\*]\s*)/);
         const bulletMarker = bulletMatch ? bulletMatch[1] : '• ';
         textToPrint = `${bulletMarker}${replacement}`;
-        isReplaced = true;
       }
 
       const isHeader = /^(education|experience|professional experience|projects|personal projects|technical skills|skills|achievements|activities|declaration)/i.test(trimmed);
+      const isRole = roles.has(trimmed.toLowerCase());
+      const isCompany = companies.has(trimmed.toLowerCase());
+      const isProjTitle = projTitles.has(trimmed.toLowerCase());
+
       if (isHeader) {
         doc.moveDown(0.5);
         doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#111111').text(textToPrint.toUpperCase());
         const yLine = doc.y + 2;
         doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#cccccc').lineWidth(1).stroke();
         doc.moveDown(0.5);
+      } else if (isRole || isProjTitle) {
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('#111111').text(textToPrint, { lineGap: 2.5 });
+      } else if (isCompany) {
+        doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#333333').text(textToPrint, { lineGap: 2.5 });
       } else {
-        if (isReplaced) {
-          doc.fontSize(10).font('Helvetica-Oblique').fillColor('#1b365d').text(textToPrint, { lineGap: 2.5 });
-        } else {
-          doc.fontSize(9.5).font('Helvetica').fillColor('#222222').text(textToPrint, { lineGap: 2.5 });
-        }
+        doc.fontSize(9.5).font('Helvetica').fillColor('#222222').text(textToPrint, { lineGap: 2.5 });
       }
     });
 
@@ -460,7 +466,7 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     html += `<style>
       body { font-family: 'Times New Roman', serif; font-size: 11pt; color: #000000; line-height: 1.35; margin: 50px; }
       .header-title { font-size: 13pt; font-weight: bold; border-bottom: 1.5px solid #000000; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; padding-bottom: 2px; }
-      .replaced-bullet { color: #1b365d; font-style: italic; font-weight: bold; }
+      .bold-entry { font-weight: bold; }
       p { margin: 0 0 4px 0; }
     </style></head><body>`;
 
@@ -487,6 +493,10 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     buildReplacements(origSections.experience, optSections.experience);
     buildReplacements(origSections.projects, optSections.projects);
 
+    const roles = new Set((origSections.experience || []).map((e: any) => (e.role || '').trim().toLowerCase()));
+    const companies = new Set((origSections.experience || []).map((e: any) => (e.company || '').trim().toLowerCase()));
+    const projTitles = new Set((origSections.projects || []).map((p: any) => (p.title || '').trim().toLowerCase()));
+
     const lines = originalText.split('\n');
     lines.forEach((line) => {
       const trimmed = line.trim();
@@ -497,25 +507,25 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
 
       const cleanLine = trimmed.replace(/^[•\-\*]\s*/, '').trim().toLowerCase();
       let textToPrint = line;
-      let isReplaced = false;
 
       if (replacements.has(cleanLine)) {
         const replacement = replacements.get(cleanLine)!;
         const bulletMatch = line.match(/^\s*([•\-\*]\s*)/);
         const bulletMarker = bulletMatch ? bulletMatch[1] : '• ';
         textToPrint = `${bulletMarker}${replacement}`;
-        isReplaced = true;
       }
 
       const isHeader = /^(education|experience|professional experience|projects|personal projects|technical skills|skills|achievements|activities|declaration)/i.test(trimmed);
+      const isRole = roles.has(trimmed.toLowerCase());
+      const isCompany = companies.has(trimmed.toLowerCase());
+      const isProjTitle = projTitles.has(trimmed.toLowerCase());
+
       if (isHeader) {
         html += `<div class="header-title">${textToPrint.toUpperCase()}</div>`;
+      } else if (isRole || isCompany || isProjTitle) {
+        html += `<p class="bold-entry">${textToPrint}</p>`;
       } else {
-        if (isReplaced) {
-          html += `<p class="replaced-bullet">${textToPrint}</p>`;
-        } else {
-          html += `<p>${textToPrint}</p>`;
-        }
+        html += `<p>${textToPrint}</p>`;
       }
     });
 

@@ -5,7 +5,16 @@ export async function parsePdf(filePath: string): Promise<string> {
   const dataBuffer = fs.readFileSync(filePath);
   const uint8Array = new Uint8Array(dataBuffer);
   
-  const parser = new PDFParse(uint8Array);
+  // Use unpkg CDN mapping URLs to fetch predefined Adobe CMaps and standard font data.
+  // This preserves UTF-8/Unicode mappings and prevents garbage character corruptions.
+  const parser = new PDFParse({
+    data: uint8Array,
+    cMapUrl: 'https://unpkg.com/pdfjs-dist@5.4.296/cmaps/',
+    cMapPacked: true,
+    standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@5.4.296/standard_fonts/',
+    verbosity: 0 // Suppress verbose pdfjs console warnings
+  });
+  
   const result = await parser.getText();
   
   if (!result || !result.text) {
