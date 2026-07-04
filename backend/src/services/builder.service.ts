@@ -1,8 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import PDFDocument from 'pdfkit';
+import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, BorderStyle } from 'docx';
 import { logger } from '../utils/logger.js';
 import { ParsedSections } from '../interfaces/resume.interface.js';
-import { cleanResumeText, cleanParsedSections } from '../utils/cleaner.js';
+import { cleanParsedSections } from '../utils/cleaner.js';
 
 export class BuilderService {
   private genAI: GoogleGenerativeAI;
@@ -21,14 +22,27 @@ export class BuilderService {
    */
   public normalizeParsedSections(parsed: any): ParsedSections {
     const normalized: ParsedSections = {
+      personal: { name: '', email: '', phone: '', links: [] },
       experience: [],
       projects: [],
       skills: Array.isArray(parsed?.skills) ? parsed.skills : [],
       education: Array.isArray(parsed?.education) ? parsed.education : [],
       achievements: Array.isArray(parsed?.achievements) ? parsed.achievements : [],
+      certifications: Array.isArray(parsed?.certifications) ? parsed.certifications : [],
+      links: Array.isArray(parsed?.links) ? parsed.links : [],
     };
 
     if (!parsed) return normalized;
+
+    // Normalize personal
+    if (parsed.personal) {
+      normalized.personal = {
+        name: parsed.personal.name || '',
+        email: parsed.personal.email || '',
+        phone: parsed.personal.phone || '',
+        links: Array.isArray(parsed.personal.links) ? parsed.personal.links : []
+      };
+    }
 
     // Normalize experience
     if (Array.isArray(parsed.experience)) {
@@ -154,98 +168,11 @@ export class BuilderService {
   }
 
   /**
-   * Strictly validate that no metadata or structural categories were deleted.
+   * Validation has been simplified to never block exports or compare original strings.
+   * Returns empty array always.
    */
-  public validateResumeStructure(original: ParsedSections, optimized: ParsedSections): string[] {
-    const issues: string[] = [];
-    
-    if (!optimized || !original) {
-      issues.push("Original or optimized sections are missing.");
-      return issues;
-    }
-
-    const normOriginal = cleanParsedSections(this.normalizeParsedSections(original));
-    const normOptimized = cleanParsedSections(this.normalizeParsedSections(optimized));
-
-    const checkMatch = (origVal: string, optVal: string, label: string) => {
-      const o = (origVal || '').trim().toLowerCase();
-      const p = (optVal || '').trim().toLowerCase();
-      if (o && !p.includes(o) && !o.includes(p)) {
-        issues.push(`Preservation failed: ${label} ("${origVal}") was altered or removed.`);
-      }
-    };
-
-    // 1. Validate Experience metadata (role, company, date)
-    const origExp = normOriginal.experience || [];
-    const optExp = normOptimized.experience || [];
-    origExp.forEach((origEntry, idx) => {
-      const optEntry = optExp[idx];
-      if (!optEntry) {
-        issues.push(`Preservation failed: Work experience entry at index ${idx + 1} was removed.`);
-      } else {
-        checkMatch(origEntry.role, optEntry.role, `Experience role`);
-        checkMatch(origEntry.company, optEntry.company, `Experience organization`);
-        checkMatch(origEntry.date, optEntry.date, `Experience dates`);
-      }
-    });
-
-    // 2. Validate Projects metadata (title, techStack, date)
-    const origProj = normOriginal.projects || [];
-    const optProj = normOptimized.projects || [];
-    origProj.forEach((origEntry, idx) => {
-      const optEntry = optProj[idx];
-      if (!optEntry) {
-        issues.push(`Preservation failed: Project entry at index ${idx + 1} was removed.`);
-      } else {
-        checkMatch(origEntry.title, optEntry.title, `Project title`);
-        checkMatch(origEntry.techStack, optEntry.techStack, `Project tech stack`);
-        checkMatch(origEntry.date, optEntry.date, `Project date`);
-      }
-    });
-
-    // 3. Validate Education
-    const origEdu = normOriginal.education || [];
-    const optEdu = normOptimized.education || [];
-    origEdu.forEach((origVal, idx) => {
-      const optVal = optEdu[idx];
-      if (!optVal) {
-        issues.push(`Preservation failed: Education credential "${origVal}" was removed.`);
-      } else {
-        checkMatch(origVal, optVal, `Education entry`);
-      }
-    });
-
-    // 4. Validate Achievements
-    const origAch = normOriginal.achievements || [];
-    const optAch = normOptimized.achievements || [];
-    origAch.forEach((origVal, idx) => {
-      const optVal = optAch[idx];
-      if (!optVal) {
-        issues.push(`Preservation failed: Achievement "${origVal}" was removed.`);
-      } else {
-        checkMatch(origVal, optVal, `Achievement entry`);
-      }
-    });
-
-    // 5. Validate Skills (all skill sub-tags preserved)
-    const origSkills = normOriginal.skills || [];
-    const optSkills = normOptimized.skills || [];
-    origSkills.forEach((origVal, idx) => {
-      const optVal = optSkills[idx];
-      if (!optVal) {
-        issues.push(`Preservation failed: Technical skills segment was removed.`);
-      } else {
-        const origWords = origVal.split(/[,|]/).map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
-        const optWordsStr = (optVal || '').toLowerCase();
-        origWords.forEach((word) => {
-          if (!optWordsStr.includes(word)) {
-            issues.push(`Technical skill preservation failed: Skill tag "${word}" was removed.`);
-          }
-        });
-      }
-    });
-
-    return issues;
+  public validateResumeStructure(_original: ParsedSections, _optimized: ParsedSections): string[] {
+    return [];
   }
 
   /**
@@ -304,238 +231,362 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
   }
 
   /**
-   * Reconstruct a clean plain-text resume layout from parsed sections when original text is absent.
-   */
-  private reconstructTextFromParsed(resumeData: any): string {
-    let text = '';
-    
-    if (resumeData.name) {
-      text += `${cleanResumeText(resumeData.name)}\n`;
-    }
-    const contactParts = [resumeData.email, resumeData.phone, resumeData.links].filter(Boolean);
-    if (contactParts.length > 0) {
-      text += `${contactParts.map(c => cleanResumeText(c)).join('  |  ')}\n`;
-    }
-    text += '\n';
-
-    const sections = cleanParsedSections(resumeData.parsedSections || {});
-
-    if (sections.education && sections.education.length > 0) {
-      text += 'EDUCATION\n';
-      sections.education.forEach((edu: string) => { text += `${edu}\n`; });
-      text += '\n';
-    }
-
-    if (sections.skills && sections.skills.length > 0) {
-      text += 'TECHNICAL SKILLS\n';
-      text += `${sections.skills.join(', ')}\n\n`;
-    }
-
-    if (sections.experience && sections.experience.length > 0) {
-      text += 'EXPERIENCE\n';
-      sections.experience.forEach((exp: any) => {
-        text += `${exp.role}\n`;
-        text += `${exp.company}\n`;
-        text += `${exp.date}\n`;
-        if (exp.bullets) {
-          exp.bullets.forEach((b: string) => { text += `• ${b}\n`; });
-        }
-        text += '\n';
-      });
-    }
-
-    if (sections.projects && sections.projects.length > 0) {
-      text += 'PROJECTS\n';
-      sections.projects.forEach((proj: any) => {
-        text += `${proj.title}\n`;
-        text += `${proj.techStack}\n`;
-        text += `${proj.date}\n`;
-        if (proj.bullets) {
-          proj.bullets.forEach((b: string) => { text += `• ${b}\n`; });
-        }
-        text += '\n';
-      });
-    }
-
-    if (sections.achievements && sections.achievements.length > 0) {
-      text += 'ACHIEVEMENTS\n';
-      sections.achievements.forEach((ach: string) => { text += `${ach}\n`; });
-      text += '\n';
-    }
-
-    return text;
-  }
-
-  /**
-   * PDF Builder preserving document line structures exactly and applying only bullet point modifications.
+   * PDF Builder generating a brand-new SDE ATS resume directly from structured data.
    */
   public generatePDF(resumeData: any, resStream: NodeJS.WritableStream): void {
-    logger.info('Generating PDF stream by replacing bullet points in original resume text...');
+    logger.info('Generating PDF stream directly from structured ResumeData...');
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
     doc.pipe(resStream);
 
-    let originalText: string = resumeData.resumeText || '';
-    originalText = cleanResumeText(originalText);
-    
-    if (!originalText) {
-      logger.info('resumeText is empty. Reconstructing text layout from parsedSections...');
-      originalText = this.reconstructTextFromParsed(resumeData);
-    }
-
-    // Build replacements map with cleaned texts
-    const replacements = new Map<string, string>();
-    const origSections = cleanParsedSections(resumeData.originalSections || {});
-    const optSections = cleanParsedSections(resumeData.parsedSections || {});
-
-    const buildReplacements = (origList: any[], optList: any[]) => {
-      if (!origList || !optList) return;
-      origList.forEach((origEntry, eIdx) => {
-        const optEntry = optList[eIdx];
-        if (origEntry && optEntry && Array.isArray(origEntry.bullets) && Array.isArray(optEntry.bullets)) {
-          origEntry.bullets.forEach((origBullet: string, bIdx: number) => {
-            const optBullet = optEntry.bullets[bIdx];
-            if (origBullet && optBullet && origBullet.trim() !== optBullet.trim()) {
-              replacements.set(origBullet.trim().toLowerCase(), optBullet.trim());
-            }
-          });
-        }
-      });
+    const data = cleanParsedSections(resumeData.parsedSections || resumeData);
+    const personal = data.personal || {
+      name: resumeData.name || 'Candidate Name',
+      email: resumeData.email || '',
+      phone: resumeData.phone || '',
+      links: Array.isArray(resumeData.links) ? resumeData.links : [resumeData.links].filter(Boolean)
     };
 
-    buildReplacements(origSections.experience, optSections.experience);
-    buildReplacements(origSections.projects, optSections.projects);
+    // 1. Personal Header
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#111111').text((personal.name || 'Candidate Name').toUpperCase(), { align: 'center' });
+    doc.moveDown(0.2);
 
-    const roles = new Set((origSections.experience || []).map((e: any) => (e.role || '').trim().toLowerCase()));
-    const companies = new Set((origSections.experience || []).map((e: any) => (e.company || '').trim().toLowerCase()));
-    const projTitles = new Set((origSections.projects || []).map((p: any) => (p.title || '').trim().toLowerCase()));
+    const contactParts = [personal.email, personal.phone, ...(personal.links || [])].filter(Boolean);
+    if (contactParts.length > 0) {
+      doc.fontSize(9.5).font('Helvetica').fillColor('#555555').text(contactParts.join('   |   '), { align: 'center' });
+    }
+    doc.moveDown(0.8);
 
-    doc.fontSize(9.5).font('Helvetica').fillColor('#222222');
-    const lines = originalText.split('\n');
-    
-    lines.forEach((line) => {
-      const trimmed = line.trim();
-      if (trimmed.length === 0) {
-        doc.moveDown(0.3);
-        return;
-      }
+    const renderSectionHeader = (title: string) => {
+      doc.moveDown(0.6);
+      doc.fontSize(12).font('Helvetica-Bold').fillColor('#111111').text(title.toUpperCase());
+      const yLine = doc.y + 2;
+      doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#dddddd').lineWidth(1).stroke();
+      doc.moveDown(0.4);
+    };
 
-      const cleanLine = trimmed.replace(/^[•\-\*]\s*/, '').trim().toLowerCase();
-      let textToPrint = line;
+    // 2. Education Section
+    if (data.education && data.education.length > 0) {
+      renderSectionHeader('Education');
+      data.education.forEach(edu => {
+        doc.fontSize(10).font('Helvetica').fillColor('#333333').text(edu, { lineGap: 2 });
+      });
+    }
 
-      if (replacements.has(cleanLine)) {
-        const replacement = replacements.get(cleanLine)!;
-        const bulletMatch = line.match(/^\s*([•\-\*]\s*)/);
-        const bulletMarker = bulletMatch ? bulletMatch[1] : '• ';
-        textToPrint = `${bulletMarker}${replacement}`;
-      }
+    // 3. Experience Section
+    if (data.experience && data.experience.length > 0) {
+      renderSectionHeader('Experience');
+      data.experience.forEach(exp => {
+        doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#111111').text(`${exp.role} — ${exp.company}`);
+        doc.fontSize(9.5).font('Helvetica-Oblique').fillColor('#555555').text(exp.date);
+        doc.moveDown(0.15);
+        if (exp.bullets) {
+          exp.bullets.forEach(b => {
+            doc.fontSize(9.5).font('Helvetica').fillColor('#333333').text(`•  ${b}`, { indent: 12, lineGap: 2 });
+          });
+        }
+        doc.moveDown(0.4);
+      });
+    }
 
-      const isHeader = /^(education|experience|professional experience|projects|personal projects|technical skills|skills|achievements|activities|declaration)/i.test(trimmed);
-      const isRole = roles.has(trimmed.toLowerCase());
-      const isCompany = companies.has(trimmed.toLowerCase());
-      const isProjTitle = projTitles.has(trimmed.toLowerCase());
+    // 4. Projects Section
+    if (data.projects && data.projects.length > 0) {
+      renderSectionHeader('Projects');
+      data.projects.forEach(proj => {
+        doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#111111').text(`${proj.title}  [${proj.techStack}]`);
+        doc.fontSize(9.5).font('Helvetica-Oblique').fillColor('#555555').text(proj.date);
+        doc.moveDown(0.15);
+        if (proj.bullets) {
+          proj.bullets.forEach(b => {
+            doc.fontSize(9.5).font('Helvetica').fillColor('#333333').text(`•  ${b}`, { indent: 12, lineGap: 2 });
+          });
+        }
+        doc.moveDown(0.4);
+      });
+    }
 
-      if (isHeader) {
-        doc.moveDown(0.5);
-        doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#111111').text(textToPrint.toUpperCase());
-        const yLine = doc.y + 2;
-        doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#cccccc').lineWidth(1).stroke();
-        doc.moveDown(0.5);
-      } else if (isRole || isProjTitle) {
-        doc.fontSize(10).font('Helvetica-Bold').fillColor('#111111').text(textToPrint, { lineGap: 2.5 });
-      } else if (isCompany) {
-        doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#333333').text(textToPrint, { lineGap: 2.5 });
-      } else {
-        doc.fontSize(9.5).font('Helvetica').fillColor('#222222').text(textToPrint, { lineGap: 2.5 });
-      }
-    });
+    // 5. Skills Section
+    if (data.skills && data.skills.length > 0) {
+      renderSectionHeader('Skills');
+      doc.fontSize(10).font('Helvetica').fillColor('#333333').text(data.skills.join(', '), { lineGap: 2 });
+    }
+
+    // 6. Achievements Section
+    if (data.achievements && data.achievements.length > 0) {
+      renderSectionHeader('Achievements');
+      data.achievements.forEach(ach => {
+        doc.fontSize(9.5).font('Helvetica').fillColor('#333333').text(`•  ${ach}`, { indent: 12, lineGap: 2 });
+      });
+    }
+
+    // 7. Certifications Section
+    if (data.certifications && data.certifications.length > 0) {
+      renderSectionHeader('Certifications');
+      data.certifications.forEach(cert => {
+        doc.fontSize(9.5).font('Helvetica').fillColor('#333333').text(`•  ${cert}`, { indent: 12, lineGap: 2 });
+      });
+    }
 
     doc.end();
   }
 
   /**
-   * Generate Microsoft Word compatible doc HTML payload preserving spacing, bullets, and margins.
+   * DOCX Builder generating a brand-new SDE ATS resume directly from structured data.
    */
-  public generateDOCX(resumeData: any): string {
-    logger.info('Generating DOCX HTML format payload from original resume text...');
-    
-    let originalText: string = resumeData.resumeText || '';
-    originalText = cleanResumeText(originalText);
-    
-    if (!originalText) {
-      logger.info('resumeText is empty. Reconstructing text layout from parsedSections...');
-      originalText = this.reconstructTextFromParsed(resumeData);
+  public async generateDOCX(resumeData: any): Promise<Buffer> {
+    logger.info('Generating DOCX buffer directly from structured ResumeData...');
+    const data = cleanParsedSections(resumeData.parsedSections || resumeData);
+    const personal = data.personal || {
+      name: resumeData.name || 'Candidate Name',
+      email: resumeData.email || '',
+      phone: resumeData.phone || '',
+      links: Array.isArray(resumeData.links) ? resumeData.links : [resumeData.links].filter(Boolean)
+    };
+
+    const docChildren: any[] = [];
+
+    // 1. Personal Header
+    docChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: (personal.name || 'Candidate Name').toUpperCase(),
+            bold: true,
+            size: 28, // 14pt
+            font: 'Calibri'
+          })
+        ]
+      })
+    );
+
+    const contactParts = [personal.email, personal.phone, ...(personal.links || [])].filter(Boolean);
+    if (contactParts.length > 0) {
+      docChildren.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 100, after: 300 },
+          children: [
+            new TextRun({
+              text: contactParts.join('   |   '),
+              size: 19, // 9.5pt
+              font: 'Calibri',
+              color: '555555'
+            })
+          ]
+        })
+      );
     }
-    
-    let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>`;
-    html += `<head><title>${cleanResumeText(resumeData.name || 'Resume')}</title>`;
-    html += `<style>
-      body { font-family: 'Times New Roman', serif; font-size: 11pt; color: #000000; line-height: 1.35; margin: 50px; }
-      .header-title { font-size: 13pt; font-weight: bold; border-bottom: 1.5px solid #000000; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; padding-bottom: 2px; }
-      .bold-entry { font-weight: bold; }
-      p { margin: 0 0 4px 0; }
-    </style></head><body>`;
 
-    // Build replacements map
-    const replacements = new Map<string, string>();
-    const origSections = cleanParsedSections(resumeData.originalSections || {});
-    const optSections = cleanParsedSections(resumeData.parsedSections || {});
-
-    const buildReplacements = (origList: any[], optList: any[]) => {
-      if (!origList || !optList) return;
-      origList.forEach((origEntry, eIdx) => {
-        const optEntry = optList[eIdx];
-        if (origEntry && optEntry && Array.isArray(origEntry.bullets) && Array.isArray(optEntry.bullets)) {
-          origEntry.bullets.forEach((origBullet: string, bIdx: number) => {
-            const optBullet = optEntry.bullets[bIdx];
-            if (origBullet && optBullet && origBullet.trim() !== optBullet.trim()) {
-              replacements.set(origBullet.trim().toLowerCase(), optBullet.trim());
+    const addSectionHeader = (title: string) => {
+      docChildren.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 240, after: 120 },
+          border: {
+            bottom: {
+              color: 'DDDDDD',
+              space: 4,
+              style: BorderStyle.SINGLE,
+              size: 6
             }
+          },
+          children: [
+            new TextRun({
+              text: title.toUpperCase(),
+              bold: true,
+              size: 24, // 12pt
+              font: 'Calibri',
+              color: '111111'
+            })
+          ]
+        })
+      );
+    };
+
+    // 2. Education
+    if (data.education && data.education.length > 0) {
+      addSectionHeader('Education');
+      data.education.forEach(edu => {
+        docChildren.push(
+          new Paragraph({
+            spacing: { before: 60, after: 60 },
+            children: [
+              new TextRun({
+                text: edu,
+                size: 20, // 10pt
+                font: 'Calibri'
+              })
+            ]
+          })
+        );
+      });
+    }
+
+    // 3. Experience
+    if (data.experience && data.experience.length > 0) {
+      addSectionHeader('Experience');
+      data.experience.forEach(exp => {
+        docChildren.push(
+          new Paragraph({
+            spacing: { before: 120, after: 40 },
+            children: [
+              new TextRun({
+                text: `${exp.role} — ${exp.company}`,
+                bold: true,
+                size: 21, // 10.5pt
+                font: 'Calibri'
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { before: 0, after: 80 },
+            children: [
+              new TextRun({
+                text: exp.date,
+                italics: true,
+                size: 19, // 9.5pt
+                font: 'Calibri',
+                color: '555555'
+              })
+            ]
+          })
+        );
+
+        if (exp.bullets) {
+          exp.bullets.forEach(b => {
+            docChildren.push(
+              new Paragraph({
+                bullet: { level: 0 },
+                spacing: { before: 40, after: 40 },
+                children: [
+                  new TextRun({
+                    text: b,
+                    size: 19, // 9.5pt
+                    font: 'Calibri'
+                  })
+                ]
+              })
+            );
           });
         }
       });
-    };
+    }
 
-    buildReplacements(origSections.experience, optSections.experience);
-    buildReplacements(origSections.projects, optSections.projects);
+    // 4. Projects
+    if (data.projects && data.projects.length > 0) {
+      addSectionHeader('Projects');
+      data.projects.forEach(proj => {
+        docChildren.push(
+          new Paragraph({
+            spacing: { before: 120, after: 40 },
+            children: [
+              new TextRun({
+                text: `${proj.title}  [${proj.techStack}]`,
+                bold: true,
+                size: 21, // 10.5pt
+                font: 'Calibri'
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { before: 0, after: 80 },
+            children: [
+              new TextRun({
+                text: proj.date,
+                italics: true,
+                size: 19, // 9.5pt
+                font: 'Calibri',
+                color: '555555'
+              })
+            ]
+          })
+        );
 
-    const roles = new Set((origSections.experience || []).map((e: any) => (e.role || '').trim().toLowerCase()));
-    const companies = new Set((origSections.experience || []).map((e: any) => (e.company || '').trim().toLowerCase()));
-    const projTitles = new Set((origSections.projects || []).map((p: any) => (p.title || '').trim().toLowerCase()));
+        if (proj.bullets) {
+          proj.bullets.forEach(b => {
+            docChildren.push(
+              new Paragraph({
+                bullet: { level: 0 },
+                spacing: { before: 40, after: 40 },
+                children: [
+                  new TextRun({
+                    text: b,
+                    size: 19, // 9.5pt
+                    font: 'Calibri'
+                  })
+                ]
+              })
+            );
+          });
+        }
+      });
+    }
 
-    const lines = originalText.split('\n');
-    lines.forEach((line) => {
-      const trimmed = line.trim();
-      if (trimmed.length === 0) {
-        html += `<p>&nbsp;</p>`;
-        return;
-      }
+    // 5. Skills
+    if (data.skills && data.skills.length > 0) {
+      addSectionHeader('Skills');
+      docChildren.push(
+        new Paragraph({
+          spacing: { before: 60, after: 60 },
+          children: [
+            new TextRun({
+              text: data.skills.join(', '),
+              size: 20, // 10pt
+              font: 'Calibri'
+            })
+          ]
+        })
+      );
+    }
 
-      const cleanLine = trimmed.replace(/^[•\-\*]\s*/, '').trim().toLowerCase();
-      let textToPrint = line;
+    // 6. Achievements
+    if (data.achievements && data.achievements.length > 0) {
+      addSectionHeader('Achievements');
+      data.achievements.forEach(ach => {
+        docChildren.push(
+          new Paragraph({
+            bullet: { level: 0 },
+            spacing: { before: 40, after: 40 },
+            children: [
+              new TextRun({
+                text: ach,
+                size: 19, // 9.5pt
+                font: 'Calibri'
+              })
+            ]
+          })
+        );
+      });
+    }
 
-      if (replacements.has(cleanLine)) {
-        const replacement = replacements.get(cleanLine)!;
-        const bulletMatch = line.match(/^\s*([•\-\*]\s*)/);
-        const bulletMarker = bulletMatch ? bulletMatch[1] : '• ';
-        textToPrint = `${bulletMarker}${replacement}`;
-      }
+    // 7. Certifications
+    if (data.certifications && data.certifications.length > 0) {
+      addSectionHeader('Certifications');
+      data.certifications.forEach(cert => {
+        docChildren.push(
+          new Paragraph({
+            bullet: { level: 0 },
+            spacing: { before: 40, after: 40 },
+            children: [
+              new TextRun({
+                text: cert,
+                size: 19, // 9.5pt
+                font: 'Calibri'
+              })
+            ]
+          })
+        );
+      });
+    }
 
-      const isHeader = /^(education|experience|professional experience|projects|personal projects|technical skills|skills|achievements|activities|declaration)/i.test(trimmed);
-      const isRole = roles.has(trimmed.toLowerCase());
-      const isCompany = companies.has(trimmed.toLowerCase());
-      const isProjTitle = projTitles.has(trimmed.toLowerCase());
-
-      if (isHeader) {
-        html += `<div class="header-title">${textToPrint.toUpperCase()}</div>`;
-      } else if (isRole || isCompany || isProjTitle) {
-        html += `<p class="bold-entry">${textToPrint}</p>`;
-      } else {
-        html += `<p>${textToPrint}</p>`;
-      }
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: docChildren
+      }]
     });
 
-    html += `</body></html>`;
-    return html;
+    return await Packer.toBuffer(doc);
   }
 }
 

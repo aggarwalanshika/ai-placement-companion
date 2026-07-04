@@ -24,6 +24,13 @@ export interface ProjectAnalysisItem {
   improved: string;
 }
 
+export interface PersonalData {
+  name: string;
+  email: string;
+  phone: string;
+  links: string[];
+}
+
 export interface WorkExperience {
   role: string;
   company: string;
@@ -39,11 +46,14 @@ export interface ProjectEntry {
 }
 
 export interface ParsedSections {
+  personal: PersonalData;
+  education: string[];
   experience: WorkExperience[];
   projects: ProjectEntry[];
   skills: string[];
-  education: string[];
   achievements: string[];
+  certifications: string[];
+  links: string[];
 }
 
 export interface ResumeAnalysisResult {

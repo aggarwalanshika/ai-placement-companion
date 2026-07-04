@@ -34,11 +34,28 @@ export function cleanResumeText(text: string): string {
  * Deep clean structured parsed sections of any garbage characters.
  */
 export function cleanParsedSections(sections: ParsedSections): ParsedSections {
-  if (!sections) return sections;
+  if (!sections) {
+    return {
+      personal: { name: '', email: '', phone: '', links: [] },
+      education: [],
+      experience: [],
+      projects: [],
+      skills: [],
+      achievements: [],
+      certifications: [],
+      links: []
+    };
+  }
   
   const cleanStr = (s: string) => cleanResumeText(s || '');
 
   const cleaned: ParsedSections = {
+    personal: {
+      name: cleanStr(sections.personal?.name || ''),
+      email: cleanStr(sections.personal?.email || ''),
+      phone: cleanStr(sections.personal?.phone || ''),
+      links: (sections.personal?.links || []).map(cleanStr)
+    },
     experience: (sections.experience || []).map((exp) => ({
       role: cleanStr(exp.role),
       company: cleanStr(exp.company),
@@ -53,7 +70,9 @@ export function cleanParsedSections(sections: ParsedSections): ParsedSections {
     })),
     skills: (sections.skills || []).map(cleanStr),
     education: (sections.education || []).map(cleanStr),
-    achievements: (sections.achievements || []).map(cleanStr)
+    achievements: (sections.achievements || []).map(cleanStr),
+    certifications: (sections.certifications || []).map(cleanStr),
+    links: (sections.links || []).map(cleanStr)
   };
 
   return cleaned;

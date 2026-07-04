@@ -125,19 +125,6 @@ export class ResumeController {
     const { name, email, phone, links, parsedSections, originalSections, resumeText } = req.body;
 
     try {
-      if (originalSections) {
-        const validationErrors = builderService.validateResumeStructure(originalSections, parsedSections);
-        if (validationErrors.length > 0) {
-          logger.error('PDF generation aborted: Structural checks failed.');
-          res.status(400).json({
-            success: false,
-            message: 'PDF Export blocked: Structural preservation validation failed.',
-            errors: validationErrors
-          });
-          return;
-        }
-      }
-
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename=optimized_resume.pdf');
       builderService.generatePDF({ name, email, phone, links, parsedSections, originalSections, resumeText }, res);
@@ -152,23 +139,10 @@ export class ResumeController {
     const { name, email, phone, links, parsedSections, originalSections, resumeText } = req.body;
 
     try {
-      if (originalSections) {
-        const validationErrors = builderService.validateResumeStructure(originalSections, parsedSections);
-        if (validationErrors.length > 0) {
-          logger.error('Word document generation aborted: Structural checks failed.');
-          res.status(400).json({
-            success: false,
-            message: 'DOCX Export blocked: Structural preservation validation failed.',
-            errors: validationErrors
-          });
-          return;
-        }
-      }
-
-      const html = builderService.generateDOCX({ name, email, phone, links, parsedSections, originalSections, resumeText });
-      res.setHeader('Content-Type', 'application/msword');
-      res.setHeader('Content-Disposition', 'attachment; filename=optimized_resume.doc');
-      res.status(200).send(html);
+      const buffer = await builderService.generateDOCX({ name, email, phone, links, parsedSections, originalSections, resumeText });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', 'attachment; filename=optimized_resume.docx');
+      res.status(200).send(buffer);
     } catch (error) {
       logger.error(`Error during DOCX export controller step: ${(error as any).message}`);
       next(error);

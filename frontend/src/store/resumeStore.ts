@@ -14,12 +14,22 @@ export interface ProjectEntry {
   bullets: string[];
 }
 
+export interface PersonalData {
+  name: string;
+  email: string;
+  phone: string;
+  links: string[];
+}
+
 export interface ParsedSections {
+  personal: PersonalData;
+  education: string[];
   experience: WorkExperience[];
   projects: ProjectEntry[];
   skills: string[];
-  education: string[];
   achievements: string[];
+  certifications: string[];
+  links: string[];
 }
 
 export interface ResumeVersion {
@@ -60,6 +70,7 @@ interface ResumeState {
   
   saveVersion: (notes?: string) => void;
   deleteVersion: (id: string) => void;
+  restoreVersion: (id: string) => void;
   setContactInfo: (name: string, email: string, phone: string, links: string) => void;
 }
 
@@ -69,14 +80,26 @@ interface ResumeState {
  */
 export function normalizeParsedSections(parsed: any): ParsedSections {
   const normalized: ParsedSections = {
+    personal: { name: '', email: '', phone: '', links: [] },
+    education: Array.isArray(parsed?.education) ? parsed.education : [],
     experience: [],
     projects: [],
     skills: Array.isArray(parsed?.skills) ? parsed.skills : [],
-    education: Array.isArray(parsed?.education) ? parsed.education : [],
     achievements: Array.isArray(parsed?.achievements) ? parsed.achievements : [],
+    certifications: Array.isArray(parsed?.certifications) ? parsed.certifications : [],
+    links: Array.isArray(parsed?.links) ? parsed.links : [],
   };
 
   if (!parsed) return normalized;
+
+  if (parsed.personal) {
+    normalized.personal = {
+      name: parsed.personal.name || '',
+      email: parsed.personal.email || '',
+      phone: parsed.personal.phone || '',
+      links: Array.isArray(parsed.personal.links) ? parsed.personal.links : []
+    };
+  }
 
   // Normalize experience
   if (Array.isArray(parsed.experience)) {
@@ -182,18 +205,60 @@ export function normalizeParsedSections(parsed: any): ParsedSections {
 
 // Client-side text parsing helper to split plain text into structured resume sections
 function parseSectionsFromText(text: string): ParsedSections {
+  let name = 'Candidate Name';
+  let email = '';
+  let phone = '';
+  const linksList: string[] = [];
+
+  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if (emailMatch) email = emailMatch[0];
+
+  const phoneMatch = text.match(/(\+?\d{1,3}[-.\s]?)?\d{10}/);
+  if (phoneMatch) phone = phoneMatch[0];
+
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  if (lines.length > 0) {
+    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+      const line = lines[i];
+      if (line.length < 50 && !line.includes('@') && !line.includes('http') && !line.includes('|')) {
+        name = line;
+        break;
+      }
+    }
+  }
+
+  lines.forEach(line => {
+    if (/(linkedin\.com|github\.com|leetcode\.com|hackerrank\.com|twitter\.com|portfolio)/i.test(line)) {
+      const parts = line.split(/[|\t\s,]+/).map(p => p.trim());
+      parts.forEach(part => {
+        if (/(linkedin|github|leetcode|hackerrank|twitter|portfolio|http)/i.test(part) && part.length > 5) {
+          linksList.push(part.replace(/^[•\-\*]\s*/, '').trim());
+        }
+      });
+    }
+  });
+
+  const uniqueLinks = Array.from(new Set(linksList));
+
   const sections: ParsedSections = {
+    personal: {
+      name,
+      email,
+      phone,
+      links: uniqueLinks
+    },
     experience: [],
     projects: [],
     skills: [],
     education: [],
     achievements: [],
+    certifications: [],
+    links: uniqueLinks
   };
 
   if (!text) return sections;
 
-  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  let currentSection: keyof ParsedSections | null = null;
+  let currentSection: keyof ParsedSections | 'certifications' | null = null;
   
   const sectionLines: Record<string, string[]> = {
     education: [],
@@ -201,6 +266,7 @@ function parseSectionsFromText(text: string): ParsedSections {
     experience: [],
     projects: [],
     achievements: [],
+    certifications: []
   };
 
   for (const line of lines) {
@@ -222,6 +288,9 @@ function parseSectionsFromText(text: string): ParsedSections {
     } else if (lower.startsWith('achievements') || lower.startsWith('experience and achievements') || lower.startsWith('extracurriculars')) {
       currentSection = 'achievements';
       continue;
+    } else if (lower.startsWith('certifications') || lower.startsWith('licenses and certifications') || lower === 'certifications') {
+      currentSection = 'certifications';
+      continue;
     } else if (lower.startsWith('declaration')) {
       currentSection = null;
       continue;
@@ -232,10 +301,11 @@ function parseSectionsFromText(text: string): ParsedSections {
     }
   }
 
-  // Parse Education, Skills, Achievements
+  // Parse Education, Skills, Achievements, Certifications
   sections.skills = sectionLines.skills.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
   sections.education = sectionLines.education.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
   sections.achievements = sectionLines.achievements.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
+  sections.certifications = sectionLines.certifications.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
 
   // Date regex matching timelines and years
   const dateRegex = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December|Present)\s+\d{4}|\b\d{4}\s*-\s*(?:\d{4}|Present)\b|\b\d{4}\b/i;
@@ -472,11 +542,6 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       parsed = parseSectionsFromText(text);
     }
 
-    const analysisWithSections = {
-      ...analysis,
-      parsedSections: parsed,
-    };
-
     let name = 'Anshika Aggarwal';
     let email = 'aggarwalanshika4@gmail.com';
     let phone = '+91-8707881770';
@@ -492,6 +557,21 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
     if (lines.length > 0 && lines[0].length < 50 && !lines[0].includes('@')) {
       name = lines[0];
     }
+
+    // Set structured personal sub-object
+    parsed.personal = {
+      name,
+      email,
+      phone,
+      links: parsed.personal?.links && parsed.personal.links.length > 0 
+        ? parsed.personal.links 
+        : [links]
+    };
+
+    const analysisWithSections = {
+      ...analysis,
+      parsedSections: parsed,
+    };
     
     try {
       localStorage.setItem(
@@ -800,6 +880,43 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
 
     set({
       versions: newVersionsList,
+    });
+  },
+
+  restoreVersion: (id) => {
+    const { versions, resumeText, resumeFileName, originalSections, candidateName, candidateEmail, candidatePhone, candidateLinks } = get();
+    const ver = versions.find((v) => v.id === id);
+    if (!ver) return;
+
+    const updatedAnalysis = {
+      ...get().analysisResult,
+      overallScore: ver.atsScore,
+      parsedSections: JSON.parse(JSON.stringify(ver.parsedSections))
+    };
+
+    try {
+      localStorage.setItem(
+        'resume-copilot-data',
+        JSON.stringify({
+          resumeText,
+          resumeFileName,
+          analysisResult: updatedAnalysis,
+          originalSections,
+          versions,
+          candidateName,
+          candidateEmail,
+          candidatePhone,
+          candidateLinks,
+        })
+      );
+    } catch (e) {
+      console.error('Failed to persist restoreVersion state:', e);
+    }
+
+    set({
+      analysisResult: updatedAnalysis,
+      history: [],
+      future: [],
     });
   },
 

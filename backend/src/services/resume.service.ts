@@ -9,18 +9,60 @@ import { logger } from '../utils/logger.js';
  * using structured metadata lines and bullet tags instead of AI inference.
  */
 export function parseResumeTextDeterministic(text: string): any {
+  let name = 'Candidate Name';
+  let email = '';
+  let phone = '';
+  const linksList: string[] = [];
+
+  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if (emailMatch) email = emailMatch[0];
+
+  const phoneMatch = text.match(/(\+?\d{1,3}[-.\s]?)?\d{10}/);
+  if (phoneMatch) phone = phoneMatch[0];
+
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  if (lines.length > 0) {
+    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+      const line = lines[i];
+      if (line.length < 50 && !line.includes('@') && !line.includes('http') && !line.includes('|')) {
+        name = line;
+        break;
+      }
+    }
+  }
+
+  lines.forEach(line => {
+    if (/(linkedin\.com|github\.com|leetcode\.com|hackerrank\.com|twitter\.com|portfolio)/i.test(line)) {
+      const parts = line.split(/[|\t\s,]+/).map(p => p.trim());
+      parts.forEach(part => {
+        if (/(linkedin|github|leetcode|hackerrank|twitter|portfolio|http)/i.test(part) && part.length > 5) {
+          linksList.push(part.replace(/^[•\-\*]\s*/, '').trim());
+        }
+      });
+    }
+  });
+
+  const uniqueLinks = Array.from(new Set(linksList));
+
   const sections: any = {
+    personal: {
+      name,
+      email,
+      phone,
+      links: uniqueLinks
+    },
     experience: [],
     projects: [],
     skills: [],
     education: [],
     achievements: [],
+    certifications: [],
+    links: uniqueLinks
   };
 
   if (!text) return sections;
 
-  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  let currentSection: 'education' | 'skills' | 'experience' | 'projects' | 'achievements' | null = null;
+  let currentSection: 'education' | 'skills' | 'experience' | 'projects' | 'achievements' | 'certifications' | null = null;
   
   const sectionLines: Record<string, string[]> = {
     education: [],
@@ -28,6 +70,7 @@ export function parseResumeTextDeterministic(text: string): any {
     experience: [],
     projects: [],
     achievements: [],
+    certifications: []
   };
 
   for (const line of lines) {
@@ -49,6 +92,9 @@ export function parseResumeTextDeterministic(text: string): any {
     } else if (lower.startsWith('achievements') || lower.startsWith('experience and achievements') || lower.startsWith('extracurriculars')) {
       currentSection = 'achievements';
       continue;
+    } else if (lower.startsWith('certifications') || lower.startsWith('licenses and certifications') || lower === 'certifications') {
+      currentSection = 'certifications';
+      continue;
     } else if (lower.startsWith('declaration')) {
       currentSection = null;
       continue;
@@ -63,6 +109,7 @@ export function parseResumeTextDeterministic(text: string): any {
   sections.skills = sectionLines.skills.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
   sections.education = sectionLines.education.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
   sections.achievements = sectionLines.achievements.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
+  sections.certifications = sectionLines.certifications.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
 
   // Date regex matching timelines and years
   const dateRegex = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December|Present)\s+\d{4}|\b\d{4}\s*-\s*(?:\d{4}|Present)\b|\b\d{4}\b/i;
