@@ -735,7 +735,13 @@ export default function ResumeAnalyzer() {
             {/* Actions Bar */}
             <div className="p-4 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl flex flex-wrap gap-4 items-center justify-between">
               <div className="flex gap-4">
-                <button className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all shadow-md shadow-blue-500/10">
+                <button
+                  onClick={() => navigate('/resume-rewriter')}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-650 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-xs font-bold rounded-lg text-white transition-all shadow-md shadow-blue-500/10"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-yellow-300" /> Improve Resume
+                </button>
+                <button className="flex items-center gap-1.5 px-4 py-2 bg-slate-950 border border-slate-900 hover:bg-slate-900 text-xs font-semibold rounded-lg text-slate-350 transition-all">
                   <Download className="w-3.5 h-3.5" /> Download PDF Report
                 </button>
                 <button

@@ -45,4 +45,25 @@ export class ResumeController {
       });
     }
   }
+
+  public static async rewrite(req: Request, res: Response, next: NextFunction): Promise<void> {
+    logger.info('API call received: POST /api/resume/rewrite');
+    const { resumeText, section, bulletPoint } = req.body;
+
+    if (!resumeText || !section || !bulletPoint) {
+      logger.error('Rewrite failed: Missing parameters.');
+      return next(new AppError('Missing required rewrite parameters: resumeText, section, and bulletPoint are all required.', 400));
+    }
+
+    try {
+      const result = await resumeService.rewriteBulletPoint(resumeText, section, bulletPoint);
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      logger.error(`Error during rewrite controller step: ${(error as any).message}`);
+      next(error);
+    }
+  }
 }

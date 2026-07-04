@@ -24,6 +24,14 @@ export interface ProjectAnalysisItem {
   improved: string;
 }
 
+export interface ParsedSections {
+  experience: string[];
+  projects: string[];
+  skills: string[];
+  education: string[];
+  achievements: string[];
+}
+
 export interface ResumeAnalysisResult {
   overallScore: number;
   sectionScores: SectionScores;
@@ -34,5 +42,6 @@ export interface ResumeAnalysisResult {
   keywordMatch: KeywordMatch[];
   resumeSummary: string;
   projectAnalysis: ProjectAnalysisItem[];
+  parsedSections?: ParsedSections;
   resumeText?: string;
 }
