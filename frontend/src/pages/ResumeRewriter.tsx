@@ -54,8 +54,34 @@ export default function ResumeRewriter() {
   // Score count animation state
   const [animatedScore, setAnimatedScore] = useState(0);
 
+  // Candidate contact details inputs (loaded dynamically from resumeText if present)
+  const [candidateName, setCandidateName] = useState('Anshika Aggarwal');
+  const [candidateEmail, setCandidateEmail] = useState('aggarwalanshika4@gmail.com');
+  const [candidatePhone, setCandidatePhone] = useState('+91-8707881770');
+  const [candidateLinks, setCandidateLinks] = useState('LinkedIn | LeetCode | GitHub');
+
   const parsedSections = analysisResult?.parsedSections;
   const overallScore = analysisResult?.overallScore || 0;
+
+  // Extract contact info dynamically from resume text on load
+  useEffect(() => {
+    if (resumeText) {
+      const emailMatch = resumeText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      if (emailMatch) setCandidateEmail(emailMatch[0]);
+
+      const phoneMatch = resumeText.match(/(\+?\d{1,3}[-.\s]?)?\d{10}/);
+      if (phoneMatch) setCandidatePhone(phoneMatch[0]);
+
+      // Grab first non-empty line as name candidate
+      const lines = resumeText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length > 0) {
+        const potentialName = lines[0];
+        if (potentialName.length < 50 && !potentialName.includes('@')) {
+          setCandidateName(potentialName);
+        }
+      }
+    }
+  }, [resumeText]);
 
   // Sync animated score count-up
   useEffect(() => {
@@ -138,7 +164,7 @@ export default function ResumeRewriter() {
       }
     } catch (err: any) {
       console.error('Fetch suggestion error:', err);
-      // Heuristic fallback helper if API is missing or fails
+      // Fallback generator
       const fallbackSuggestion = {
         original: bullet,
         improved: `Engineered highly optimal ${bullet.replace(/^(did|worked on|helped|coordinate|coordinated)/i, 'Microservices')} - optimizing pipeline throughput by 32% and reducing average latency by 18%.`,
@@ -176,7 +202,7 @@ export default function ResumeRewriter() {
     showToast('Suggestion dismissed.');
   };
 
-  // Simple Word alignment diff markup generator
+  // Word alignment diff markup generator
   const renderDiff = (original: string, improved: string) => {
     const origWords = original.split(/\s+/);
     const impWords = improved.split(/\s+/);
@@ -218,50 +244,83 @@ export default function ResumeRewriter() {
     return <div className="leading-relaxed text-xs text-slate-200 mt-2 bg-slate-950/40 p-4 border border-slate-900 rounded-xl">{result}</div>;
   };
 
-  // Export raw text file matching typical single-page ATS outlines
+  // Export templates conforming to standard SDE outlines
   const exportResume = (type: 'pdf' | 'docx') => {
     if (!parsedSections) return;
     
-    let docContent = `Resume Copilot Generated Profile\n`;
-    docContent += `===================================\n\n`;
-    
-    docContent += `EDUCATION\n`;
-    parsedSections.education.forEach((edu: string) => {
-      docContent += `- ${edu}\n`;
-    });
-    docContent += `\n`;
+    if (type === 'pdf') {
+      // Direct window print opens print layout dialog
+      window.print();
+      showToast('Print dialog opened. Choose Save as PDF.');
+      return;
+    }
 
-    docContent += `SKILLS\n`;
-    docContent += parsedSections.skills.join(', ') + `\n\n`;
+    // Rich Word document export using inline SDE stylesheet template
+    let wordHTML = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>`;
+    wordHTML += `<head><title>${candidateName} Resume</title>`;
+    wordHTML += `<style>
+      body { font-family: 'Times New Roman', serif; font-size: 11.5pt; color: #000; line-height: 1.35; padding: 20px; }
+      h1 { text-align: center; font-size: 24pt; margin: 0 0 5px 0; font-weight: bold; text-transform: uppercase; }
+      .contact { text-align: center; font-size: 10pt; color: #333; margin-bottom: 20px; }
+      h2 { font-size: 13pt; font-weight: bold; border-bottom: 1.5px solid #000; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; padding-bottom: 2px; }
+      ul { margin-top: 2px; margin-bottom: 6px; padding-left: 20px; }
+      li { margin-bottom: 4px; }
+      .skills-box { padding-left: 5px; margin-bottom: 10px; }
+    </style></head><body>`;
 
-    docContent += `PROFESSIONAL EXPERIENCE\n`;
-    parsedSections.experience.forEach((exp: string) => {
-      docContent += `- ${exp}\n`;
-    });
-    docContent += `\n`;
+    wordHTML += `<h1>${candidateName}</h1>`;
+    wordHTML += `<div class="contact">${candidateEmail} &nbsp;|&nbsp; ${candidatePhone} &nbsp;|&nbsp; ${candidateLinks}</div>`;
 
-    docContent += `PROJECTS\n`;
-    parsedSections.projects.forEach((proj: string) => {
-      docContent += `- ${proj}\n`;
-    });
-    docContent += `\n`;
+    if (parsedSections.education && parsedSections.education.length > 0) {
+      wordHTML += `<h2>Education</h2><ul>`;
+      parsedSections.education.forEach((edu: string) => {
+        wordHTML += `<li>${edu}</li>`;
+      });
+      wordHTML += `</ul>`;
+    }
 
-    docContent += `ACHIEVEMENTS & EXTRACURRICULARS\n`;
-    parsedSections.achievements.forEach((ach: string) => {
-      docContent += `- ${ach}\n`;
-    });
+    if (parsedSections.skills && parsedSections.skills.length > 0) {
+      wordHTML += `<h2>Technical Skills</h2>`;
+      wordHTML += `<div class="skills-box">${parsedSections.skills.join(', ')}</div>`;
+    }
 
-    const blob = new Blob([docContent], { type: 'text/plain;charset=utf-8' });
+    if (parsedSections.experience && parsedSections.experience.length > 0) {
+      wordHTML += `<h2>Professional Experience</h2><ul>`;
+      parsedSections.experience.forEach((exp: string) => {
+        wordHTML += `<li>${exp}</li>`;
+      });
+      wordHTML += `</ul>`;
+    }
+
+    if (parsedSections.projects && parsedSections.projects.length > 0) {
+      wordHTML += `<h2>Projects</h2><ul>`;
+      parsedSections.projects.forEach((proj: string) => {
+        wordHTML += `<li>${proj}</li>`;
+      });
+      wordHTML += `</ul>`;
+    }
+
+    if (parsedSections.achievements && parsedSections.achievements.length > 0) {
+      wordHTML += `<h2>Achievements & Extracurriculars</h2><ul>`;
+      parsedSections.achievements.forEach((ach: string) => {
+        wordHTML += `<li>${ach}</li>`;
+      });
+      wordHTML += `</ul>`;
+    }
+
+    wordHTML += `</body></html>`;
+
+    const blob = new Blob(['\ufeff' + wordHTML], { type: 'application/msword;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${resumeFileName?.replace(/\.[^/.]+$/, "") || 'Resume'}_optimized.${type === 'pdf' ? 'txt' : 'doc'}`;
+    link.download = `${resumeFileName?.replace(/\.[^/.]+$/, "") || 'Resume'}_optimized.doc`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
-    showToast(`Successfully downloaded SDE ${type.toUpperCase()} template draft.`);
+    showToast('Rich Word document exported successfully.');
   };
 
   return (
@@ -325,9 +384,9 @@ export default function ResumeRewriter() {
             <div className="flex gap-2">
               <button
                 onClick={() => exportResume('pdf')}
-                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all animate-pulse"
               >
-                <Download className="w-3.5 h-3.5" /> Export PDF
+                <Download className="w-3.5 h-3.5" /> Print PDF
               </button>
               <button
                 onClick={() => exportResume('docx')}
@@ -358,6 +417,41 @@ export default function ResumeRewriter() {
           {/* LEFT PANEL: Original Resume section views */}
           <div className="lg:col-span-3 space-y-4">
             
+            {/* Contact Details Card */}
+            <div className="p-4 bg-slate-900/10 border border-slate-850 rounded-2xl space-y-3">
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Contact Information (Editable)</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <input
+                  type="text"
+                  value={candidateName}
+                  onChange={(e) => setCandidateName(e.target.value)}
+                  placeholder="Full Name"
+                  className="bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                />
+                <input
+                  type="text"
+                  value={candidateEmail}
+                  onChange={(e) => setCandidateEmail(e.target.value)}
+                  placeholder="Email Address"
+                  className="bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                />
+                <input
+                  type="text"
+                  value={candidatePhone}
+                  onChange={(e) => setCandidatePhone(e.target.value)}
+                  placeholder="Phone Number"
+                  className="bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                />
+                <input
+                  type="text"
+                  value={candidateLinks}
+                  onChange={(e) => setCandidateLinks(e.target.value)}
+                  placeholder="LinkedIn | GitHub | Portfolio"
+                  className="bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
             {/* Section tabs */}
             <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-900 overflow-x-auto gap-1">
               {(['experience', 'projects', 'skills', 'education', 'achievements'] as const).map((sec) => (
@@ -429,7 +523,7 @@ export default function ResumeRewriter() {
                 })}
 
                 {(parsedSections[activeSection] || []).length === 0 && (
-                  <div className="py-10 text-center text-xs text-slate-500 italic">
+                  <div className="py-10 text-center text-xs text-slate-550 italic">
                     This section does not contain any parsed bullet points.
                   </div>
                 )}
@@ -494,7 +588,7 @@ export default function ResumeRewriter() {
                     {/* Inline Editor */}
                     {isEditing ? (
                       <div className="space-y-2">
-                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Custom Edit suggested text</span>
+                        <span className="text-[9px] text-slate-550 font-bold uppercase tracking-wider block">Custom Edit suggested text</span>
                         <textarea
                           value={editedText}
                           onChange={(e) => setEditedText(e.target.value)}
@@ -562,6 +656,111 @@ export default function ResumeRewriter() {
         </div>
       )}
 
+      {/* Print Resume Area (hidden on screen via CSS, shown on window.print()) */}
+      {parsedSections && (
+        <div id="print-resume-area">
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <h1 style={{ fontSize: '22pt', fontWeight: 'bold', margin: '0 0 5px 0', textTransform: 'uppercase' }}>
+              {candidateName}
+            </h1>
+            <div style={{ fontSize: '10pt', color: '#111' }}>
+              {candidateEmail} &nbsp;|&nbsp; {candidatePhone} &nbsp;|&nbsp; {candidateLinks}
+            </div>
+          </div>
+
+          {parsedSections.education && parsedSections.education.length > 0 && (
+            <div style={{ marginBottom: '15px' }}>
+              <h2 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '3px', margin: '15px 0 8px 0', textTransform: 'uppercase', color: '#111' }}>
+                Education
+              </h2>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '10.5pt', lineHeight: '1.4', color: '#111' }}>
+                {parsedSections.education.map((edu: string, i: number) => (
+                  <li key={i} style={{ marginBottom: '3px' }}>{edu}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {parsedSections.skills && parsedSections.skills.length > 0 && (
+            <div style={{ marginBottom: '15px' }}>
+              <h2 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '3px', margin: '15px 0 8px 0', textTransform: 'uppercase', color: '#111' }}>
+                Technical Skills
+              </h2>
+              <div style={{ fontSize: '10.5pt', lineHeight: '1.4', paddingLeft: '5px', color: '#111' }}>
+                {parsedSections.skills.join(', ')}
+              </div>
+            </div>
+          )}
+
+          {parsedSections.experience && parsedSections.experience.length > 0 && (
+            <div style={{ marginBottom: '15px' }}>
+              <h2 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '3px', margin: '15px 0 8px 0', textTransform: 'uppercase', color: '#111' }}>
+                Professional Experience
+              </h2>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '10.5pt', lineHeight: '1.4', color: '#111' }}>
+                {parsedSections.experience.map((exp: string, i: number) => (
+                  <li key={i} style={{ marginBottom: '4px' }}>{exp}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {parsedSections.projects && parsedSections.projects.length > 0 && (
+            <div style={{ marginBottom: '15px' }}>
+              <h2 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '3px', margin: '15px 0 8px 0', textTransform: 'uppercase', color: '#111' }}>
+                Projects
+              </h2>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '10.5pt', lineHeight: '1.4', color: '#111' }}>
+                {parsedSections.projects.map((proj: string, i: number) => (
+                  <li key={i} style={{ marginBottom: '4px' }}>{proj}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {parsedSections.achievements && parsedSections.achievements.length > 0 && (
+            <div style={{ marginBottom: '15px' }}>
+              <h2 style={{ fontSize: '12pt', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '3px', margin: '15px 0 8px 0', textTransform: 'uppercase', color: '#111' }}>
+                Achievements & Activities
+              </h2>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '10.5pt', lineHeight: '1.4', color: '#111' }}>
+                {parsedSections.achievements.map((ach: string, i: number) => (
+                  <li key={i} style={{ marginBottom: '3px' }}>{ach}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <style>{`
+            @media screen {
+              #print-resume-area {
+                display: none !important;
+              }
+            }
+            @media print {
+              body * {
+                visibility: hidden !important;
+              }
+              #print-resume-area, #print-resume-area * {
+                visibility: visible !important;
+              }
+              #print-resume-area {
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                color: black !important;
+                background: white !important;
+                font-family: 'Times New Roman', Times, serif !important;
+              }
+              header, aside, main, .no-print, button, nav {
+                display: none !important;
+              }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }
