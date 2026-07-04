@@ -70,16 +70,16 @@ export default function LandingPage() {
   const steps = [
     { num: '01', title: 'Upload Resume', desc: 'Drag your PDF to extract project metrics.' },
     { num: '02', title: 'AI Analysis', desc: 'Locate missing keywords and get an ATS grade.' },
-    { num: '03', title: 'Practice Interviews', desc: 'Simulate adaptive voice-based mock panels.' },
-    { num: '04', title: 'Improve Skills', desc: 'Target weak topics using tailored daily feeds.' },
-    { num: '05', title: 'Land Your Dream Job', desc: 'Approach real placement rounds with confidence.' },
+    { num: '03', title: 'Rewrite Bullets', desc: 'Refactor descriptions with metrics and action verbs.' },
+    { num: '04', title: 'Match Job Description', desc: 'Compare profile against listing requirements.' },
+    { num: '05', title: 'Export & Apply', desc: 'Generate a clean, optimized single-page resume.' },
   ];
 
   const stats = [
-    { value: '95%', label: 'Resume Accuracy' },
-    { value: '10,000+', label: 'Mock Questions Generated' },
-    { value: '5,000+', label: 'Students Prepared' },
-    { value: '50+', label: 'Supported Companies' },
+    { value: '95%', label: 'ATS Score Accuracy' },
+    { value: '25,000+', label: 'Bullet Points Rewritten' },
+    { value: '8,000+', label: 'Resumes Optimized' },
+    { value: '100%', label: 'ATS Keyword Matching' },
   ];
 
   return (
@@ -262,10 +262,10 @@ export default function LandingPage() {
       <section className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-slate-900/60">
         <div className="text-center space-y-3 mb-12">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-            Tailored Placement Sandbox Features
+            AI Resume Copilot Core Features
           </h2>
           <p className="text-slate-400 text-xs md:text-sm max-w-xl mx-auto">
-            Everything structured in a clean, unified dashboard built specifically to get you offer-ready.
+            Everything structured in a clean, unified workspace built specifically to optimize your resume profiles.
           </p>
         </div>
 
@@ -290,7 +290,7 @@ export default function LandingPage() {
       <section className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-slate-900/60">
         <div className="text-center space-y-3 mb-16">
           <h2 className="text-2xl md:text-3xl font-bold text-white">How It Works</h2>
-          <p className="text-slate-450 text-xs">Our platform guides you through a progressive timeline directly to your goal.</p>
+          <p className="text-slate-455 text-xs">Our platform guides you from your raw resume to an SDE-optimized application profile.</p>
         </div>
 
         {/* Animated Horizontal Timeline */}
@@ -315,8 +315,8 @@ export default function LandingPage() {
       {/* Social Proof (Statistics) */}
       <section className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-slate-900/60 bg-[#080d1a]/20">
         <div className="text-center space-y-2 mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-white">Why Students Succeed With Us</h2>
-          <p className="text-slate-400 text-xs">Proven figures backing placement track records.</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-white">Why SDEs Choose Resume Copilot</h2>
+          <p className="text-slate-400 text-xs">High-impact conversion rates backed by AI optimization statistics.</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
@@ -331,7 +331,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-900/60 py-8 relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center sm:flex sm:justify-between text-[11px] text-slate-550">
-        <p>© 2026 AI Placement Companion. All rights reserved.</p>
+        <p>© 2026 AI Resume Copilot. All rights reserved.</p>
         <p className="mt-2 sm:mt-0 flex justify-center gap-4">
           <span className="hover:text-slate-400 cursor-pointer">Privacy Policy</span>
           <span className="hover:text-slate-400 cursor-pointer">Terms of Service</span>
