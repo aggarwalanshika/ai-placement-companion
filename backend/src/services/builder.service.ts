@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import PDFDocument from 'pdfkit';
 import { logger } from '../utils/logger.js';
 import { ParsedSections } from '../interfaces/resume.interface.js';
+import { cleanResumeText, cleanParsedSections } from '../utils/cleaner.js';
 
 export class BuilderService {
   private genAI: GoogleGenerativeAI;
@@ -163,8 +164,8 @@ export class BuilderService {
       return issues;
     }
 
-    const normOriginal = this.normalizeParsedSections(original);
-    const normOptimized = this.normalizeParsedSections(optimized);
+    const normOriginal = cleanParsedSections(this.normalizeParsedSections(original));
+    const normOptimized = cleanParsedSections(this.normalizeParsedSections(optimized));
 
     const checkMatch = (origVal: string, optVal: string, label: string) => {
       const o = (origVal || '').trim().toLowerCase();
@@ -252,7 +253,7 @@ export class BuilderService {
    */
   public async validateResume(resumeText: string, sections: ParsedSections): Promise<{ status: string; issues: string[] }> {
     logger.info('Running AI validation check on the merged resume sections...');
-    const normSections = this.normalizeParsedSections(sections);
+    const normSections = cleanParsedSections(this.normalizeParsedSections(sections));
     
     if (!process.env.GEMINI_API_KEY) {
       logger.info('Using mock AI validation fallback.');
@@ -309,15 +310,15 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     let text = '';
     
     if (resumeData.name) {
-      text += `${resumeData.name}\n`;
+      text += `${cleanResumeText(resumeData.name)}\n`;
     }
     const contactParts = [resumeData.email, resumeData.phone, resumeData.links].filter(Boolean);
     if (contactParts.length > 0) {
-      text += `${contactParts.join('  |  ')}\n`;
+      text += `${contactParts.map(c => cleanResumeText(c)).join('  |  ')}\n`;
     }
     text += '\n';
 
-    const sections = resumeData.parsedSections || {};
+    const sections = cleanParsedSections(resumeData.parsedSections || {});
 
     if (sections.education && sections.education.length > 0) {
       text += 'EDUCATION\n';
@@ -374,15 +375,17 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     doc.pipe(resStream);
 
     let originalText: string = resumeData.resumeText || '';
+    originalText = cleanResumeText(originalText);
+    
     if (!originalText) {
       logger.info('resumeText is empty. Reconstructing text layout from parsedSections...');
       originalText = this.reconstructTextFromParsed(resumeData);
     }
 
-    // Build replacements map
+    // Build replacements map with cleaned texts
     const replacements = new Map<string, string>();
-    const origSections = resumeData.originalSections || {};
-    const optSections = resumeData.parsedSections || {};
+    const origSections = cleanParsedSections(resumeData.originalSections || {});
+    const optSections = cleanParsedSections(resumeData.parsedSections || {});
 
     const buildReplacements = (origList: any[], optList: any[]) => {
       if (!origList || !optList) return;
@@ -456,13 +459,15 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     logger.info('Generating DOCX HTML format payload from original resume text...');
     
     let originalText: string = resumeData.resumeText || '';
+    originalText = cleanResumeText(originalText);
+    
     if (!originalText) {
       logger.info('resumeText is empty. Reconstructing text layout from parsedSections...');
       originalText = this.reconstructTextFromParsed(resumeData);
     }
     
     let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>`;
-    html += `<head><title>${resumeData.name || 'Resume'}</title>`;
+    html += `<head><title>${cleanResumeText(resumeData.name || 'Resume')}</title>`;
     html += `<style>
       body { font-family: 'Times New Roman', serif; font-size: 11pt; color: #000000; line-height: 1.35; margin: 50px; }
       .header-title { font-size: 13pt; font-weight: bold; border-bottom: 1.5px solid #000000; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; padding-bottom: 2px; }
@@ -472,8 +477,8 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
 
     // Build replacements map
     const replacements = new Map<string, string>();
-    const origSections = resumeData.originalSections || {};
-    const optSections = resumeData.parsedSections || {};
+    const origSections = cleanParsedSections(resumeData.originalSections || {});
+    const optSections = cleanParsedSections(resumeData.parsedSections || {});
 
     const buildReplacements = (origList: any[], optList: any[]) => {
       if (!origList || !optList) return;

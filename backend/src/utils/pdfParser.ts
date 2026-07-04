@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { PDFParse } from 'pdf-parse';
+import { cleanResumeText } from './cleaner.js';
 
 export async function parsePdf(filePath: string): Promise<string> {
   const dataBuffer = fs.readFileSync(filePath);
@@ -21,5 +22,6 @@ export async function parsePdf(filePath: string): Promise<string> {
     throw new Error('Could not parse text from PDF or PDF is empty.');
   }
   
-  return result.text.trim();
+  // Apply our robust text cleaner to filter any remaining formatting artifacts or stray characters.
+  return cleanResumeText(result.text.trim());
 }
