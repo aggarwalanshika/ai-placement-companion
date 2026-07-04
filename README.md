@@ -155,17 +155,6 @@ npm run dev
 
 ---
 
-# 📸 Screenshots
-
-- Landing Page
-- Dashboard
-- Resume Analyzer
-- Resume Rewriter
-- Resume Preview
-- Job Matcher
-
----
-
 # 🎯 Future Improvements
 
 - Resume templates with multiple layouts
