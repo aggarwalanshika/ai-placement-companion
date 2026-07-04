@@ -386,11 +386,38 @@ const loadSavedState = () => {
     const saved = localStorage.getItem('resume-copilot-data');
     if (saved) {
       const parsed = JSON.parse(saved);
-      const normalizedOriginal = normalizeParsedSections(parsed.originalSections);
-      const normalizedAnalysis = parsed.analysisResult ? {
+      let normalizedOriginal = normalizeParsedSections(parsed.originalSections);
+      let normalizedAnalysis = parsed.analysisResult ? {
         ...parsed.analysisResult,
         parsedSections: normalizeParsedSections(parsed.analysisResult.parsedSections)
       } : null;
+
+      const hasCorruptRole = (sections: ParsedSections) => {
+        return (sections.experience || []).some(e => 
+          (e.role || '').length > 50 || 
+          (e.role || '').toLowerCase().includes('coordinated') || 
+          (e.role || '').toLowerCase().includes('permissions') || 
+          (e.role || '').toLowerCase().includes('supported') || 
+          (e.role || '').toLowerCase().includes('led')
+        );
+      };
+
+      if (parsed.resumeText && (hasCorruptRole(normalizedOriginal) || (normalizedAnalysis && hasCorruptRole(normalizedAnalysis.parsedSections)))) {
+        const corrected = parseSectionsFromText(parsed.resumeText);
+        normalizedOriginal = corrected;
+        if (normalizedAnalysis) {
+          normalizedAnalysis.parsedSections = JSON.parse(JSON.stringify(corrected));
+        }
+        try {
+          localStorage.setItem('resume-copilot-data', JSON.stringify({
+            ...parsed,
+            originalSections: corrected,
+            analysisResult: normalizedAnalysis
+          }));
+        } catch (e) {
+          console.error('Failed to save repaired state in localStorage:', e);
+        }
+      }
 
       return {
         resumeText: parsed.resumeText || null,
