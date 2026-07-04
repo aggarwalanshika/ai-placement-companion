@@ -194,12 +194,14 @@ function parseSectionsFromText(text: string): ParsedSections {
 
   const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
   let currentSection: keyof ParsedSections | null = null;
-
-  let currentExp: any = null;
-  let expLineCount = 0;
-
-  let currentProj: any = null;
-  let projLineCount = 0;
+  
+  const sectionLines: Record<string, string[]> = {
+    education: [],
+    skills: [],
+    experience: [],
+    projects: [],
+    achievements: [],
+  };
 
   for (const line of lines) {
     const lower = line.toLowerCase();
@@ -210,11 +212,9 @@ function parseSectionsFromText(text: string): ParsedSections {
       continue;
     } else if (lower.startsWith('experience') || lower.startsWith('professional experience') || lower === 'work history') {
       currentSection = 'experience';
-      currentExp = null;
       continue;
     } else if (lower.startsWith('projects') || lower === 'personal projects') {
       currentSection = 'projects';
-      currentProj = null;
       continue;
     } else if (lower.startsWith('skills') || lower.startsWith('technical skills') || lower.startsWith('skills and interests')) {
       currentSection = 'skills';
@@ -228,62 +228,123 @@ function parseSectionsFromText(text: string): ParsedSections {
     }
 
     if (currentSection) {
+      sectionLines[currentSection].push(line);
+    }
+  }
+
+  // Parse Education, Skills, Achievements
+  sections.skills = sectionLines.skills.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
+  sections.education = sectionLines.education.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
+  sections.achievements = sectionLines.achievements.map(l => l.replace(/^[•\-\*]\s*/, '').trim());
+
+  // Date regex matching timelines and years
+  const dateRegex = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December|Present)\s+\d{4}|\b\d{4}\s*-\s*(?:\d{4}|Present)\b|\b\d{4}\b/i;
+  const isDateLine = (str: string) => dateRegex.test(str);
+
+  // Parse Experience using Date line anchors
+  const expLines = sectionLines.experience;
+  const expDateIndices: number[] = [];
+  expLines.forEach((l, idx) => {
+    const isBullet = l.startsWith('•') || l.startsWith('-') || l.startsWith('*');
+    if (!isBullet && isDateLine(l)) {
+      expDateIndices.push(idx);
+    }
+  });
+
+  if (expDateIndices.length > 0) {
+    expDateIndices.forEach((dateIdx, i) => {
+      const roleIdx = Math.max(0, dateIdx - 2);
+      const companyIdx = Math.max(0, dateIdx - 1);
+      
+      const role = expLines[roleIdx];
+      const company = expLines[companyIdx];
+      const date = expLines[dateIdx];
+
+      const nextEntryStartIdx = i + 1 < expDateIndices.length ? Math.max(0, expDateIndices[i + 1] - 2) : expLines.length;
+      const bulletsLines = expLines.slice(dateIdx + 1, nextEntryStartIdx);
+      const bullets = bulletsLines.map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(l => l.length > 0);
+
+      sections.experience.push({ role, company, date, bullets });
+    });
+  } else {
+    // Fallback if no dates detected
+    let currentExp: any = null;
+    let expLineCount = 0;
+    expLines.forEach((line) => {
       const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*');
       const cleanLine = line.replace(/^[•\-\*]\s*/, '').trim();
-      if (cleanLine.length === 0) continue;
-
-      if (currentSection === 'skills' || currentSection === 'education' || currentSection === 'achievements') {
-        sections[currentSection].push(cleanLine);
-      } else if (currentSection === 'experience') {
-        if (isBullet) {
-          if (!currentExp) {
-            currentExp = { role: 'Software Engineer', company: 'Organization', date: 'Date', bullets: [] };
-            sections.experience.push(currentExp);
-          }
-          currentExp.bullets.push(cleanLine);
-        } else {
-          // Metadata lines: Line 1 = role, Line 2 = company, Line 3 = date
-          if (!currentExp || currentExp.bullets.length > 0) {
-            currentExp = { role: cleanLine, company: 'Organization', date: 'Date', bullets: [] };
-            sections.experience.push(currentExp);
-            expLineCount = 0;
-          } else {
-            expLineCount++;
-            if (expLineCount === 1) {
-              currentExp.company = cleanLine;
-            } else if (expLineCount === 2) {
-              currentExp.date = cleanLine;
-            } else {
-              currentExp.bullets.push(cleanLine);
-            }
-          }
+      if (isBullet) {
+        if (!currentExp) {
+          currentExp = { role: 'Software Engineer', company: 'Organization', date: 'Date', bullets: [] };
+          sections.experience.push(currentExp);
         }
-      } else if (currentSection === 'projects') {
-        if (isBullet) {
-          if (!currentProj) {
-            currentProj = { title: 'Project Title', techStack: 'Technologies', date: 'Date', bullets: [] };
-            sections.projects.push(currentProj);
-          }
-          currentProj.bullets.push(cleanLine);
+        currentExp.bullets.push(cleanLine);
+      } else {
+        if (!currentExp || currentExp.bullets.length > 0) {
+          currentExp = { role: cleanLine, company: 'Organization', date: 'Date', bullets: [] };
+          sections.experience.push(currentExp);
+          expLineCount = 0;
         } else {
-          // Metadata lines: Line 1 = title, Line 2 = techStack, Line 3 = date
-          if (!currentProj || currentProj.bullets.length > 0) {
-            currentProj = { title: cleanLine, techStack: 'Technologies', date: 'Date', bullets: [] };
-            sections.projects.push(currentProj);
-            projLineCount = 0;
-          } else {
-            projLineCount++;
-            if (projLineCount === 1) {
-              currentProj.techStack = cleanLine;
-            } else if (projLineCount === 2) {
-              currentProj.date = cleanLine;
-            } else {
-              currentProj.bullets.push(cleanLine);
-            }
-          }
+          expLineCount++;
+          if (expLineCount === 1) currentExp.company = cleanLine;
+          else if (expLineCount === 2) currentExp.date = cleanLine;
+          else currentExp.bullets.push(cleanLine);
         }
       }
+    });
+  }
+
+  // Parse Projects using Date line anchors
+  const projLines = sectionLines.projects;
+  const projDateIndices: number[] = [];
+  projLines.forEach((l, idx) => {
+    const isBullet = l.startsWith('•') || l.startsWith('-') || l.startsWith('*');
+    if (!isBullet && isDateLine(l)) {
+      projDateIndices.push(idx);
     }
+  });
+
+  if (projDateIndices.length > 0) {
+    projDateIndices.forEach((dateIdx, i) => {
+      const titleIdx = Math.max(0, dateIdx - 2);
+      const techIdx = Math.max(0, dateIdx - 1);
+
+      const title = projLines[titleIdx];
+      const techStack = projLines[techIdx];
+      const date = projLines[dateIdx];
+
+      const nextEntryStartIdx = i + 1 < projDateIndices.length ? Math.max(0, projDateIndices[i + 1] - 2) : projLines.length;
+      const bulletsLines = projLines.slice(dateIdx + 1, nextEntryStartIdx);
+      const bullets = bulletsLines.map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(l => l.length > 0);
+
+      sections.projects.push({ title, techStack, date, bullets });
+    });
+  } else {
+    // Fallback if no dates detected
+    let currentProj: any = null;
+    let projLineCount = 0;
+    projLines.forEach((line) => {
+      const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*');
+      const cleanLine = line.replace(/^[•\-\*]\s*/, '').trim();
+      if (isBullet) {
+        if (!currentProj) {
+          currentProj = { title: 'Project Title', techStack: 'Technologies', date: 'Date', bullets: [] };
+          sections.projects.push(currentProj);
+        }
+        currentProj.bullets.push(cleanLine);
+      } else {
+        if (!currentProj || currentProj.bullets.length > 0) {
+          currentProj = { title: cleanLine, techStack: 'Technologies', date: 'Date', bullets: [] };
+          sections.projects.push(currentProj);
+          projLineCount = 0;
+        } else {
+          projLineCount++;
+          if (projLineCount === 1) currentProj.techStack = cleanLine;
+          else if (projLineCount === 2) currentProj.date = cleanLine;
+          else currentProj.bullets.push(cleanLine);
+        }
+      }
+    });
   }
 
   // Fallbacks if experience or projects remain empty
