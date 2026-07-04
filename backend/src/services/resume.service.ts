@@ -4,6 +4,136 @@ import { ResumeAnalysisResult } from '../interfaces/resume.interface.js';
 import { AppError } from '../utils/appError.js';
 import { logger } from '../utils/logger.js';
 
+/**
+ * Deterministically parse experience, projects, skills, education, and achievements
+ * using structured metadata lines and bullet tags instead of AI inference.
+ */
+export function parseResumeTextDeterministic(text: string): any {
+  const sections: any = {
+    experience: [],
+    projects: [],
+    skills: [],
+    education: [],
+    achievements: [],
+  };
+
+  if (!text) return sections;
+
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  let currentSection: 'education' | 'skills' | 'experience' | 'projects' | 'achievements' | null = null;
+
+  let currentExp: any = null;
+  let expLineCount = 0;
+
+  let currentProj: any = null;
+  let projLineCount = 0;
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    
+    // Detect standard section headers
+    if (lower.startsWith('education') || lower === 'education') {
+      currentSection = 'education';
+      continue;
+    } else if (lower.startsWith('experience') || lower.startsWith('professional experience') || lower === 'work history') {
+      currentSection = 'experience';
+      currentExp = null;
+      continue;
+    } else if (lower.startsWith('projects') || lower === 'personal projects') {
+      currentSection = 'projects';
+      currentProj = null;
+      continue;
+    } else if (lower.startsWith('skills') || lower.startsWith('technical skills') || lower.startsWith('skills and interests')) {
+      currentSection = 'skills';
+      continue;
+    } else if (lower.startsWith('achievements') || lower.startsWith('experience and achievements') || lower.startsWith('extracurriculars')) {
+      currentSection = 'achievements';
+      continue;
+    } else if (lower.startsWith('declaration')) {
+      currentSection = null;
+      continue;
+    }
+
+    if (currentSection) {
+      const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*');
+      const cleanLine = line.replace(/^[•\-\*]\s*/, '').trim();
+      if (cleanLine.length === 0) continue;
+
+      if (currentSection === 'skills' || currentSection === 'education' || currentSection === 'achievements') {
+        sections[currentSection].push(cleanLine);
+      } else if (currentSection === 'experience') {
+        if (isBullet) {
+          if (!currentExp) {
+            currentExp = { role: 'Software Engineer', company: 'Organization', date: 'Date', bullets: [] };
+            sections.experience.push(currentExp);
+          }
+          currentExp.bullets.push(cleanLine);
+        } else {
+          // Metadata Line: Role, Company, or Date
+          if (!currentExp || currentExp.bullets.length > 0) {
+            currentExp = { role: cleanLine, company: 'Organization', date: 'Date', bullets: [] };
+            sections.experience.push(currentExp);
+            expLineCount = 0;
+          } else {
+            expLineCount++;
+            if (expLineCount === 1) {
+              currentExp.company = cleanLine;
+            } else if (expLineCount === 2) {
+              currentExp.date = cleanLine;
+            } else {
+              currentExp.bullets.push(cleanLine);
+            }
+          }
+        }
+      } else if (currentSection === 'projects') {
+        if (isBullet) {
+          if (!currentProj) {
+            currentProj = { title: 'Project Title', techStack: 'Technologies', date: 'Date', bullets: [] };
+            sections.projects.push(currentProj);
+          }
+          currentProj.bullets.push(cleanLine);
+        } else {
+          // Metadata Line: Title, Tech Stack, or Date
+          if (!currentProj || currentProj.bullets.length > 0) {
+            currentProj = { title: cleanLine, techStack: 'Technologies', date: 'Date', bullets: [] };
+            sections.projects.push(currentProj);
+            projLineCount = 0;
+          } else {
+            projLineCount++;
+            if (projLineCount === 1) {
+              currentProj.techStack = cleanLine;
+            } else if (projLineCount === 2) {
+              currentProj.date = cleanLine;
+            } else {
+              currentProj.bullets.push(cleanLine);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Fallbacks if lists remain empty
+  if (sections.experience.length === 0) {
+    sections.experience.push({
+      role: 'Software Engineer',
+      company: 'TechCorp',
+      date: '2023 - Present',
+      bullets: ['Developed features using React and Node.js.']
+    });
+  }
+  if (sections.projects.length === 0) {
+    sections.projects.push({
+      title: 'Portfolio Website',
+      techStack: 'HTML | CSS',
+      date: '2024',
+      bullets: ['Created interactive portfolio website.']
+    });
+  }
+
+  return sections;
+}
+
 export class ResumeService {
   private genAI: GoogleGenerativeAI;
 
@@ -16,7 +146,6 @@ export class ResumeService {
   }
 
   public async analyzeResume(filePath: string): Promise<ResumeAnalysisResult> {
-    // 1. Extract plain text from PDF
     let textContent: string;
     try {
       textContent = await parsePdf(filePath);
@@ -29,9 +158,8 @@ export class ResumeService {
       throw new AppError('The uploaded resume PDF contains insufficient text or is empty.', 400);
     }
 
-    logger.info(`Extracted Resume Text Length: ${textContent.length} characters`); // Step 2 log
+    logger.info(`Extracted Resume Text Length: ${textContent.length} characters`);
 
-    // 2. Call Gemini with retry logic
     let attempts = 0;
     const maxAttempts = 2;
 
@@ -40,6 +168,7 @@ export class ResumeService {
       try {
         const result = await this.callGeminiModel(textContent);
         result.resumeText = textContent;
+        result.parsedSections = parseResumeTextDeterministic(textContent); // Omit AI parsed sections
         return result;
       } catch (err: any) {
         logger.warn(`Gemini analysis attempt ${attempts} failed: ${err.message}`);
@@ -47,6 +176,7 @@ export class ResumeService {
           logger.error(`All Gemini attempts failed. Returning repaired/fallback schema.`);
           const fallback = this.getFallbackReport(textContent);
           fallback.resumeText = textContent;
+          fallback.parsedSections = parseResumeTextDeterministic(textContent);
           return fallback;
         }
       }
@@ -61,7 +191,7 @@ export class ResumeService {
       throw new AppError('Gemini API key is not configured on the server.', 500);
     }
 
-    logger.info('Gemini API is being called (Real AI request initiated)'); // Step 2 log
+    logger.info('Gemini API is being called (Real AI request initiated)');
 
     const model = this.genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
@@ -96,7 +226,7 @@ JSON Schema:
     { "title": "string", "desc": "string" }
   ],
   "missingSkills": ["string"],
-  "suggestions": ["string"],
+  "suggestions": ["string (general placement prep tip e.g. add System Design concepts)"],
   "keywordMatch": [
     { "name": "string", "type": "matched" | "missing" }
   ],
@@ -108,34 +238,8 @@ JSON Schema:
       "suggestions": ["string"],
       "improved": "string (rewritten description bullet point using active SDE verbs and metrics)"
     }
-  ],
-  "parsedSections": {
-    "experience": [
-      {
-        "role": "string (job title/role)",
-        "company": "string (organization name)",
-        "date": "string (timeline dates e.g. May 2025 - Nov 2025)",
-        "bullets": ["string (quantifiable achievement bullet point)"]
-      }
-    ],
-    "projects": [
-      {
-        "title": "string (project title)",
-        "techStack": "string (technologies used e.g. React, Node.js)",
-        "date": "string (timeline date)",
-        "bullets": ["string (quantifiable achievement bullet point)"]
-      }
-    ],
-    "skills": ["string (individual technical skills parsed)"],
-    "education": ["string (education program details)"],
-    "achievements": ["string (any achievements, hackathons, or coordinator roles found)"]
-  }
+  ]
 }
-
-Ensure:
-1. Provide at least 8 to 10 highly realistic and placement-focused suggestions.
-2. In 'projectAnalysis', critique every project detected and provide a concrete Google-style STAR/X-Y-Z formula refactored description.
-3. Compare against target skills like React, Node.js, Docker, Redis, AWS, SQL, and System Design.
 `;
 
     const response = await model.generateContent({
@@ -147,7 +251,7 @@ Ensure:
     });
 
     const responseText = response.response.text();
-    logger.info('Gemini response successfully received from Google servers'); // Step 2 log
+    logger.info('Gemini response successfully received from Google servers');
 
     if (!responseText) {
       throw new Error('Empty response received from Gemini.');
@@ -155,12 +259,9 @@ Ensure:
 
     try {
       const parsed: ResumeAnalysisResult = JSON.parse(responseText);
-      
-      // Basic runtime shape validation
       if (typeof parsed.overallScore !== 'number' || !parsed.sectionScores || !Array.isArray(parsed.suggestions)) {
         throw new Error('Returned JSON does not match the expected ResumeAnalysisResult schema.');
       }
-      
       return parsed;
     } catch (jsonErr: any) {
       logger.error(`Gemini output JSON parsing failed. Content: ${responseText}`);
@@ -168,63 +269,33 @@ Ensure:
     }
   }
 
-  // Fallback builder if API fails/is unconfigured (e.g. mock run mode)
   private getFallbackReport(resumeText: string): ResumeAnalysisResult {
     logger.info('Generating fallback report based on text search tags.');
-    
-    // Quick heuristic searches
     const lower = resumeText.toLowerCase();
     const hasTypeScript = lower.includes('typescript') || lower.includes('ts');
     const hasDocker = lower.includes('docker');
     const hasRedis = lower.includes('redis');
     const hasAws = lower.includes('aws') || lower.includes('amazon');
 
-    const score = 75 + (hasTypeScript ? 5 : 0) + (hasDocker ? 3 : 0) + (hasRedis ? 2 : 0) + (hasAws ? 2 : 0);
-
     return {
-      overallScore: Math.min(score, 100),
+      overallScore: 72,
       sectionScores: {
-        experience: 80,
-        projects: 85,
-        skills: hasTypeScript ? 80 : 70,
-        education: 90,
-        grammar: 95,
-        formatting: 88,
+        experience: 70,
+        projects: 75,
+        skills: 80,
+        education: 70,
+        grammar: 85,
+        formatting: 75,
       },
       strengths: [
-        {
-          title: 'Structured Sections',
-          desc: 'Resume sections are properly demarcated and easily scanable by standard parsers.',
-        },
-        {
-          title: 'Technical Competency',
-          desc: 'Includes relevant languages and frameworks aligned with entry-level listings.',
-        },
+        { title: 'Project Scope', desc: 'Identified multiple projects indicating SDE background.' }
       ],
       weaknesses: [
-        {
-          title: 'Missing Caching / Cloud Details',
-          desc: 'Does not prominently showcase containerization or cache acceleration layers.',
-        },
-        {
-          title: 'Unquantified Impact',
-          desc: 'Several projects list actions instead of quantitative performance metrics.',
-        },
+        { title: 'Quantifiable Metrics', desc: 'Bullet points do not list standard transaction counts.' }
       ],
-      missingSkills: [
-        ...(hasDocker ? [] : ['Docker']),
-        ...(hasRedis ? [] : ['Redis']),
-        ...(hasAws ? [] : ['AWS / Cloud Infrastructure']),
-        'Kubernetes',
-        'CI/CD Pipelines',
-      ],
+      missingSkills: ['System Design', 'Redis', 'Docker'],
       suggestions: [
-        'Add measurable achievements (e.g. page speed increases or database transaction throughput).',
-        'Quantify project details using the X-Y-Z formula ("Accomplished X, as measured by Y, by doing Z").',
-        'Add system container references such as Docker or orchestration engines.',
-        'Optimize SDE experience descriptions by using active action verbs.',
-        'Move technical stack summary to the upper half of the resume.',
-        'Verify document fits precisely onto a single page.',
+        'Rewrite descriptions using Google STAR formula.'
       ],
       keywordMatch: [
         { name: 'TypeScript', type: hasTypeScript ? 'matched' : 'missing' },
@@ -242,40 +313,7 @@ Ensure:
           suggestions: ['Introduce transactional load rates or response times.'],
           improved: 'Architected and deployed full-stack microservice backend, reducing server query latency times by 25%.',
         },
-      ],
-      parsedSections: {
-        experience: [
-          {
-            role: 'Creative and Permissions Coordinator',
-            company: 'μCR JIIT Noida',
-            date: 'May 2025 - Nov 2025',
-            bullets: [
-              'Coordinated permissions, managed creative planning, and supported execution of events.'
-            ]
-          }
-        ],
-        projects: [
-          {
-            title: 'College Dropout Prediction System',
-            techStack: 'Python | Machine Learning',
-            date: 'April 2024',
-            bullets: [
-              'Built a machine learning pipeline to predict student dropout risk using academic data.'
-            ]
-          },
-          {
-            title: 'Flight Management System',
-            techStack: 'C++ | Data Structures',
-            date: 'Nov 2024',
-            bullets: [
-              'Developed a backend system for flight scheduling using graphs, trees, and hash tables.'
-            ]
-          }
-        ],
-        skills: ['C++', 'Python', 'Data Structures', 'Algorithms', 'DBMS', 'SQL', 'HTML', 'CSS', 'JavaScript'],
-        education: ['B.Tech in Computer Science (CGPA: 9/10), JIIT Noida', 'Senior Secondary (ISC) - 96.8%', 'Matriculation (ICSE) - 97.2%'],
-        achievements: ['Smart India Hackathon (SIH) 2024 - Cleared college-level round']
-      }
+      ]
     };
   }
 

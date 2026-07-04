@@ -195,6 +195,12 @@ function parseSectionsFromText(text: string): ParsedSections {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
   let currentSection: keyof ParsedSections | null = null;
 
+  let currentExp: any = null;
+  let expLineCount = 0;
+
+  let currentProj: any = null;
+  let projLineCount = 0;
+
   for (const line of lines) {
     const lower = line.toLowerCase();
     
@@ -204,9 +210,11 @@ function parseSectionsFromText(text: string): ParsedSections {
       continue;
     } else if (lower.startsWith('experience') || lower.startsWith('professional experience') || lower === 'work history') {
       currentSection = 'experience';
+      currentExp = null;
       continue;
     } else if (lower.startsWith('projects') || lower === 'personal projects') {
       currentSection = 'projects';
+      currentProj = null;
       continue;
     } else if (lower.startsWith('skills') || lower.startsWith('technical skills') || lower.startsWith('skills and interests')) {
       currentSection = 'skills';
@@ -220,43 +228,59 @@ function parseSectionsFromText(text: string): ParsedSections {
     }
 
     if (currentSection) {
+      const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*');
       const cleanLine = line.replace(/^[•\-\*]\s*/, '').trim();
       if (cleanLine.length === 0) continue;
 
       if (currentSection === 'skills' || currentSection === 'education' || currentSection === 'achievements') {
         sections[currentSection].push(cleanLine);
       } else if (currentSection === 'experience') {
-        const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*');
-        if (isBullet && sections.experience.length > 0) {
-          sections.experience[sections.experience.length - 1].bullets.push(cleanLine);
+        if (isBullet) {
+          if (!currentExp) {
+            currentExp = { role: 'Software Engineer', company: 'Organization', date: 'Date', bullets: [] };
+            sections.experience.push(currentExp);
+          }
+          currentExp.bullets.push(cleanLine);
         } else {
-          let company = 'Organization';
-          let role = cleanLine;
-          if (cleanLine.includes(' at ')) {
-            const parts = cleanLine.split(' at ');
-            role = parts[0].trim();
-            company = parts[1].split('(')[0].trim();
+          // Metadata lines: Line 1 = role, Line 2 = company, Line 3 = date
+          if (!currentExp || currentExp.bullets.length > 0) {
+            currentExp = { role: cleanLine, company: 'Organization', date: 'Date', bullets: [] };
+            sections.experience.push(currentExp);
+            expLineCount = 0;
+          } else {
+            expLineCount++;
+            if (expLineCount === 1) {
+              currentExp.company = cleanLine;
+            } else if (expLineCount === 2) {
+              currentExp.date = cleanLine;
+            } else {
+              currentExp.bullets.push(cleanLine);
+            }
           }
-          let date = '2024';
-          const dateMatch = cleanLine.match(/\(([^)]+)\)/);
-          if (dateMatch) {
-            date = dateMatch[1];
-          }
-          sections.experience.push({ role, company, date, bullets: [] });
         }
       } else if (currentSection === 'projects') {
-        const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*');
-        if (isBullet && sections.projects.length > 0) {
-          sections.projects[sections.projects.length - 1].bullets.push(cleanLine);
-        } else {
-          let title = cleanLine;
-          let techStack = 'JavaScript';
-          if (cleanLine.includes('|')) {
-            const parts = cleanLine.split('|');
-            title = parts[0].trim();
-            techStack = parts.slice(1).join(' | ').trim();
+        if (isBullet) {
+          if (!currentProj) {
+            currentProj = { title: 'Project Title', techStack: 'Technologies', date: 'Date', bullets: [] };
+            sections.projects.push(currentProj);
           }
-          sections.projects.push({ title, techStack, date: '2024', bullets: [] });
+          currentProj.bullets.push(cleanLine);
+        } else {
+          // Metadata lines: Line 1 = title, Line 2 = techStack, Line 3 = date
+          if (!currentProj || currentProj.bullets.length > 0) {
+            currentProj = { title: cleanLine, techStack: 'Technologies', date: 'Date', bullets: [] };
+            sections.projects.push(currentProj);
+            projLineCount = 0;
+          } else {
+            projLineCount++;
+            if (projLineCount === 1) {
+              currentProj.techStack = cleanLine;
+            } else if (projLineCount === 2) {
+              currentProj.date = cleanLine;
+            } else {
+              currentProj.bullets.push(cleanLine);
+            }
+          }
         }
       }
     }
