@@ -34,6 +34,11 @@ export default function ResumeRewriter() {
     updateParsedSection,
     undo,
     redo,
+    candidateName,
+    candidateEmail,
+    candidatePhone,
+    candidateLinks,
+    setContactInfo,
   } = useResumeStore();
 
   const [activeSection, setActiveSection] = useState<keyof ParsedSections>('experience');
@@ -54,34 +59,8 @@ export default function ResumeRewriter() {
   // Score count animation state
   const [animatedScore, setAnimatedScore] = useState(0);
 
-  // Candidate contact details inputs (loaded dynamically from resumeText if present)
-  const [candidateName, setCandidateName] = useState('Anshika Aggarwal');
-  const [candidateEmail, setCandidateEmail] = useState('aggarwalanshika4@gmail.com');
-  const [candidatePhone, setCandidatePhone] = useState('+91-8707881770');
-  const [candidateLinks, setCandidateLinks] = useState('LinkedIn | LeetCode | GitHub');
-
   const parsedSections = analysisResult?.parsedSections;
   const overallScore = analysisResult?.overallScore || 0;
-
-  // Extract contact info dynamically from resume text on load
-  useEffect(() => {
-    if (resumeText) {
-      const emailMatch = resumeText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-      if (emailMatch) setCandidateEmail(emailMatch[0]);
-
-      const phoneMatch = resumeText.match(/(\+?\d{1,3}[-.\s]?)?\d{10}/);
-      if (phoneMatch) setCandidatePhone(phoneMatch[0]);
-
-      // Grab first non-empty line as name candidate
-      const lines = resumeText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      if (lines.length > 0) {
-        const potentialName = lines[0];
-        if (potentialName.length < 50 && !potentialName.includes('@')) {
-          setCandidateName(potentialName);
-        }
-      }
-    }
-  }, [resumeText]);
 
   // Sync animated score count-up
   useEffect(() => {
@@ -341,28 +320,28 @@ export default function ResumeRewriter() {
                 <input
                   type="text"
                   value={candidateName}
-                  onChange={(e) => setCandidateName(e.target.value)}
+                  onChange={(e) => setContactInfo(e.target.value, candidateEmail, candidatePhone, candidateLinks)}
                   placeholder="Full Name"
                   className="bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
                 />
                 <input
                   type="text"
                   value={candidateEmail}
-                  onChange={(e) => setCandidateEmail(e.target.value)}
+                  onChange={(e) => setContactInfo(candidateName, e.target.value, candidatePhone, candidateLinks)}
                   placeholder="Email Address"
                   className="bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
                 />
                 <input
                   type="text"
                   value={candidatePhone}
-                  onChange={(e) => setCandidatePhone(e.target.value)}
+                  onChange={(e) => setContactInfo(candidateName, candidateEmail, e.target.value, candidateLinks)}
                   placeholder="Phone Number"
                   className="bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
                 />
                 <input
                   type="text"
                   value={candidateLinks}
-                  onChange={(e) => setCandidateLinks(e.target.value)}
+                  onChange={(e) => setContactInfo(candidateName, candidateEmail, candidatePhone, e.target.value)}
                   placeholder="LinkedIn | GitHub | Portfolio"
                   className="bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
                 />

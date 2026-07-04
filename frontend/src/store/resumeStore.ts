@@ -24,6 +24,10 @@ interface ResumeState {
   analysisResult: any | null;
   originalSections: ParsedSections | null;
   versions: ResumeVersion[];
+  candidateName: string;
+  candidateEmail: string;
+  candidatePhone: string;
+  candidateLinks: string;
   history: Array<{ parsedSections: ParsedSections; overallScore: number }>;
   future: Array<{ parsedSections: ParsedSections; overallScore: number }>;
   
@@ -36,6 +40,7 @@ interface ResumeState {
   
   saveVersion: (notes?: string) => void;
   deleteVersion: (id: string) => void;
+  setContactInfo: (name: string, email: string, phone: string, links: string) => void;
 }
 
 // Client-side text parsing helper to split plain text into standard resume sections
@@ -106,6 +111,10 @@ const loadSavedState = () => {
       analysisResult: null,
       originalSections: null,
       versions: [],
+      candidateName: 'Anshika Aggarwal',
+      candidateEmail: 'aggarwalanshika4@gmail.com',
+      candidatePhone: '+91-8707881770',
+      candidateLinks: 'LinkedIn | LeetCode | GitHub',
     };
   }
   try {
@@ -118,6 +127,10 @@ const loadSavedState = () => {
         analysisResult: parsed.analysisResult || null,
         originalSections: parsed.originalSections || null,
         versions: parsed.versions || [],
+        candidateName: parsed.candidateName || 'Anshika Aggarwal',
+        candidateEmail: parsed.candidateEmail || 'aggarwalanshika4@gmail.com',
+        candidatePhone: parsed.candidatePhone || '+91-8707881770',
+        candidateLinks: parsed.candidateLinks || 'LinkedIn | LeetCode | GitHub',
       };
     }
   } catch (e) {
@@ -129,6 +142,10 @@ const loadSavedState = () => {
     analysisResult: null,
     originalSections: null,
     versions: [],
+    candidateName: 'Anshika Aggarwal',
+    candidateEmail: 'aggarwalanshika4@gmail.com',
+    candidatePhone: '+91-8707881770',
+    candidateLinks: 'LinkedIn | LeetCode | GitHub',
   };
 };
 
@@ -140,6 +157,10 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   analysisResult: savedState.analysisResult,
   originalSections: savedState.originalSections,
   versions: savedState.versions,
+  candidateName: savedState.candidateName,
+  candidateEmail: savedState.candidateEmail,
+  candidatePhone: savedState.candidatePhone,
+  candidateLinks: savedState.candidateLinks,
   history: [],
   future: [],
 
@@ -155,6 +176,23 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       ...analysis,
       parsedSections: parsed,
     };
+
+    // Extract contact info dynamically from text if present
+    let name = 'Anshika Aggarwal';
+    let email = 'aggarwalanshika4@gmail.com';
+    let phone = '+91-8707881770';
+    let links = 'LinkedIn | LeetCode | GitHub';
+
+    const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch) email = emailMatch[0];
+
+    const phoneMatch = text.match(/(\+?\d{1,3}[-.\s]?)?\d{10}/);
+    if (phoneMatch) phone = phoneMatch[0];
+
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length > 0 && lines[0].length < 50 && !lines[0].includes('@')) {
+      name = lines[0];
+    }
     
     try {
       localStorage.setItem(
@@ -165,6 +203,10 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           analysisResult: analysisWithSections,
           originalSections: parsed,
           versions: [],
+          candidateName: name,
+          candidateEmail: email,
+          candidatePhone: phone,
+          candidateLinks: links,
         })
       );
     } catch (e) {
@@ -177,6 +219,10 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       analysisResult: analysisWithSections,
       originalSections: parsed,
       versions: [],
+      candidateName: name,
+      candidateEmail: email,
+      candidatePhone: phone,
+      candidateLinks: links,
       history: [],
       future: [],
     });
@@ -194,13 +240,17 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       analysisResult: null,
       originalSections: null,
       versions: [],
+      candidateName: 'Anshika Aggarwal',
+      candidateEmail: 'aggarwalanshika4@gmail.com',
+      candidatePhone: '+91-8707881770',
+      candidateLinks: 'LinkedIn | LeetCode | GitHub',
       history: [],
       future: [],
     });
   },
 
   updateParsedSection: (section, index, newValue, scoreBoost = 0) => {
-    const { analysisResult, history, resumeText, resumeFileName, originalSections, versions } = get();
+    const { analysisResult, history, resumeText, resumeFileName, originalSections, versions, candidateName, candidateEmail, candidatePhone, candidateLinks } = get();
     if (!analysisResult || !analysisResult.parsedSections) return;
 
     // 1. Capture current state for undo
@@ -239,6 +289,10 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           analysisResult: updatedAnalysis,
           originalSections,
           versions,
+          candidateName,
+          candidateEmail,
+          candidatePhone,
+          candidateLinks,
         })
       );
     } catch (e) {
@@ -253,7 +307,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   },
 
   undo: () => {
-    const { history, future, analysisResult, resumeText, resumeFileName, originalSections, versions } = get();
+    const { history, future, analysisResult, resumeText, resumeFileName, originalSections, versions, candidateName, candidateEmail, candidatePhone, candidateLinks } = get();
     if (history.length === 0 || !analysisResult) return;
 
     // Pop the last entry from history
@@ -281,6 +335,10 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           analysisResult: updatedAnalysis,
           originalSections,
           versions,
+          candidateName,
+          candidateEmail,
+          candidatePhone,
+          candidateLinks,
         })
       );
     } catch (e) {
@@ -295,7 +353,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   },
 
   redo: () => {
-    const { history, future, analysisResult, resumeText, resumeFileName, originalSections, versions } = get();
+    const { history, future, analysisResult, resumeText, resumeFileName, originalSections, versions, candidateName, candidateEmail, candidatePhone, candidateLinks } = get();
     if (future.length === 0 || !analysisResult) return;
 
     // Pop the last entry from future
@@ -323,6 +381,10 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           analysisResult: updatedAnalysis,
           originalSections,
           versions,
+          candidateName,
+          candidateEmail,
+          candidatePhone,
+          candidateLinks,
         })
       );
     } catch (e) {
@@ -337,7 +399,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   },
 
   saveVersion: (notes) => {
-    const { analysisResult, originalSections, versions, resumeText, resumeFileName } = get();
+    const { analysisResult, originalSections, versions, resumeText, resumeFileName, candidateName, candidateEmail, candidatePhone, candidateLinks } = get();
     if (!analysisResult || !analysisResult.parsedSections) return;
 
     // Calculate changes count
@@ -382,6 +444,10 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           analysisResult,
           originalSections,
           versions: newVersionsList,
+          candidateName,
+          candidateEmail,
+          candidatePhone,
+          candidateLinks,
         })
       );
     } catch (e) {
@@ -394,7 +460,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   },
 
   deleteVersion: (id) => {
-    const { analysisResult, originalSections, versions, resumeText, resumeFileName } = get();
+    const { analysisResult, originalSections, versions, resumeText, resumeFileName, candidateName, candidateEmail, candidatePhone, candidateLinks } = get();
     const newVersionsList = versions.filter((v) => v.id !== id);
 
     try {
@@ -406,6 +472,10 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           analysisResult,
           originalSections,
           versions: newVersionsList,
+          candidateName,
+          candidateEmail,
+          candidatePhone,
+          candidateLinks,
         })
       );
     } catch (e) {
@@ -416,4 +486,34 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       versions: newVersionsList,
     });
   },
+
+  setContactInfo: (name, email, phone, links) => {
+    const { analysisResult, originalSections, versions, resumeText, resumeFileName } = get();
+    
+    try {
+      localStorage.setItem(
+        'resume-copilot-data',
+        JSON.stringify({
+          resumeText,
+          resumeFileName,
+          analysisResult,
+          originalSections,
+          versions,
+          candidateName: name,
+          candidateEmail: email,
+          candidatePhone: phone,
+          candidateLinks: links,
+        })
+      );
+    } catch (e) {
+      console.error('Failed to persist contact info:', e);
+    }
+
+    set({
+      candidateName: name,
+      candidateEmail: email,
+      candidatePhone: phone,
+      candidateLinks: links,
+    });
+  }
 }));

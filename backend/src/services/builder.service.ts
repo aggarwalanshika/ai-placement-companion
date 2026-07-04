@@ -48,6 +48,80 @@ export class BuilderService {
   }
 
   /**
+   * Strictly validate that no metadata or structural categories were deleted.
+   */
+  public validateResumeStructure(original: ParsedSections, optimized: ParsedSections): string[] {
+    const issues: string[] = [];
+    
+    if (!optimized || !original) {
+      issues.push("Original or optimized sections are missing.");
+      return issues;
+    }
+
+    const checkHeadersPreserved = (sec: keyof ParsedSections, label: string) => {
+      const origList = original[sec] || [];
+      const optList = optimized[sec] || [];
+
+      origList.forEach((line) => {
+        const trimmed = line.trim();
+        // A header line does not start with bullet characters
+        const isHeader = trimmed.length > 0 &&
+                         !trimmed.startsWith('•') &&
+                         !trimmed.startsWith('-') &&
+                         !trimmed.startsWith('*');
+
+        if (isHeader) {
+          const cleanLine = trimmed.toLowerCase();
+          const found = optList.some(optLine => optLine.toLowerCase().includes(cleanLine) || cleanLine.includes(optLine.toLowerCase()));
+          if (!found) {
+            issues.push(`Preservation failed: ${label} header "${trimmed}" is missing.`);
+          }
+        }
+      });
+    };
+
+    checkHeadersPreserved('experience', 'Experience');
+    checkHeadersPreserved('projects', 'Projects');
+    checkHeadersPreserved('education', 'Education');
+    checkHeadersPreserved('achievements', 'Achievements');
+
+    // Check dates preservation
+    const dateRegex = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December|Present)\s+\d{4}|\b\d{4}\s*-\s*(?:\d{4}|Present)\b|\b\d{4}\b/gi;
+    
+    const collectDates = (secMap: ParsedSections): Set<string> => {
+      const dates = new Set<string>();
+      Object.values(secMap).flat().forEach((str) => {
+        const matches = String(str).match(dateRegex);
+        if (matches) {
+          matches.forEach(m => dates.add(m.trim().toLowerCase()));
+        }
+      });
+      return dates;
+    };
+
+    const origDates = collectDates(original);
+    const optDates = collectDates(optimized);
+
+    origDates.forEach((date) => {
+      if (!optDates.has(date)) {
+        issues.push(`Date preservation failed: Timeline date "${date}" was removed.`);
+      }
+    });
+
+    // Check technical skills preservation
+    const origSkills = (original.skills || []).flatMap(s => s.split(/[,|]/)).map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
+    const optSkillsStr = (optimized.skills || []).join(' ').toLowerCase();
+
+    origSkills.forEach((skill) => {
+      if (!optSkillsStr.includes(skill)) {
+        issues.push(`Technical skill preservation failed: Skill tags "${skill}" were removed.`);
+      }
+    });
+
+    return issues;
+  }
+
+  /**
    * Run a final AI check on the optimized sections before export.
    */
   public async validateResume(resumeText: string, sections: ParsedSections): Promise<{ status: string; issues: string[] }> {
@@ -105,6 +179,7 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
 
   /**
    * Draw a beautifully formatted, single-page vector PDF resume using pdfkit.
+   * Header and bullet hierarchy are cleanly styled to align with professional templates.
    */
   public generatePDF(resumeData: any, resStream: NodeJS.WritableStream): void {
     logger.info('Generating PDF stream for optimized resume export...');
@@ -131,15 +206,28 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
       doc.moveTo(50, yLine).lineTo(545, yLine).strokeColor('#cccccc').lineWidth(1).stroke();
       doc.moveDown(0.8);
 
-      doc.fontSize(10).font('Helvetica').fillColor('#222222');
-      if (title.toLowerCase() === 'technical skills') {
+      if (title.toLowerCase() === 'technical skills' || title.toLowerCase() === 'skills') {
+        doc.fontSize(10).font('Helvetica').fillColor('#222222');
         doc.text(list.join(', '), { align: 'left', lineGap: 3 });
+        doc.moveDown(1.2);
       } else {
         list.forEach((item) => {
-          doc.text('•  ' + item, { align: 'left', lineGap: 3, paragraphGap: 4 });
+          const trimmed = item.trim();
+          const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*');
+          
+          if (isBullet) {
+            const cleanText = trimmed.replace(/^[•\-\*]\s*/, '').trim();
+            doc.fontSize(10).font('Helvetica').fillColor('#222222');
+            doc.text('•  ' + cleanText, { align: 'left', lineGap: 3, paragraphGap: 4, indent: 12 });
+          } else {
+            // Render header lines (company, project name, education, etc.) in Bold
+            doc.fontSize(10.5).font('Helvetica-Bold').fillColor('#000000');
+            doc.text(trimmed, { align: 'left', lineGap: 2 });
+            doc.moveDown(0.2);
+          }
         });
+        doc.moveDown(1.2);
       }
-      doc.moveDown(1.2);
     };
 
     renderSection('Education', sections.education);
@@ -159,13 +247,12 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
     let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>`;
     html += `<head><title>${resumeData.name || 'Resume'}</title>`;
     html += `<style>
-      body { font-family: 'Times New Roman', serif; font-size: 11pt; color: #000000; line-height: 1.35; margin: 50px; }
+      body { font-family: 'Times New Roman', serif; font-size: 11.5pt; color: #000000; line-height: 1.35; margin: 50px; }
       h1 { text-align: center; font-size: 22pt; font-weight: bold; margin: 0 0 5px 0; text-transform: uppercase; }
       .contact { text-align: center; font-size: 10pt; color: #444444; margin-bottom: 20px; }
-      h2 { font-size: 13pt; font-weight: bold; border-bottom: 1px solid #000000; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; padding-bottom: 2px; }
+      h2 { font-size: 13pt; font-weight: bold; border-bottom: 1.5px solid #000000; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; padding-bottom: 2px; }
       ul { margin-top: 3px; margin-bottom: 6px; padding-left: 20px; }
       li { margin-bottom: 4px; }
-      .skills { padding-left: 5px; }
     </style></head><body>`;
 
     html += `<h1>${resumeData.name || 'Anonymous'}</h1>`;
@@ -173,41 +260,47 @@ Return ONLY raw, valid JSON. Do not include markdown code block syntax (like \`\
 
     const sections = resumeData.parsedSections || {};
 
-    if (sections.education && sections.education.length > 0) {
-      html += `<h2>Education</h2><ul>`;
-      sections.education.forEach((edu: string) => {
-        html += `<li>${edu}</li>`;
-      });
-      html += `</ul>`;
-    }
+    const renderWordSection = (title: string, list: string[]) => {
+      if (!list || list.length === 0) return '';
+      let sectHtml = `<h2>${title}</h2>`;
+      
+      if (title.toLowerCase() === 'technical skills' || title.toLowerCase() === 'skills') {
+        sectHtml += `<div style="padding-left: 5px;">${list.join(', ')}</div>`;
+        return sectHtml;
+      }
 
-    if (sections.skills && sections.skills.length > 0) {
-      html += `<h2>Technical Skills</h2><div class="skills">${sections.skills.join(', ')}</div>`;
-    }
+      let inList = false;
+      list.forEach((item) => {
+        const trimmed = item.trim();
+        const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*');
 
-    if (sections.experience && sections.experience.length > 0) {
-      html += `<h2>Professional Experience</h2><ul>`;
-      sections.experience.forEach((exp: string) => {
-        html += `<li>${exp}</li>`;
+        if (isBullet) {
+          const cleanText = trimmed.replace(/^[•\-\*]\s*/, '').trim();
+          if (!inList) {
+            sectHtml += `<ul>`;
+            inList = true;
+          }
+          sectHtml += `<li>${cleanText}</li>`;
+        } else {
+          if (inList) {
+            sectHtml += `</ul>`;
+            inList = false;
+          }
+          sectHtml += `<div style="font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #000000;">${trimmed}</div>`;
+        }
       });
-      html += `</ul>`;
-    }
 
-    if (sections.projects && sections.projects.length > 0) {
-      html += `<h2>Projects</h2><ul>`;
-      sections.projects.forEach((proj: string) => {
-        html += `<li>${proj}</li>`;
-      });
-      html += `</ul>`;
-    }
+      if (inList) {
+        sectHtml += `</ul>`;
+      }
+      return sectHtml;
+    };
 
-    if (sections.achievements && sections.achievements.length > 0) {
-      html += `<h2>Achievements & Activities</h2><ul>`;
-      sections.achievements.forEach((ach: string) => {
-        html += `<li>${ach}</li>`;
-      });
-      html += `</ul>`;
-    }
+    html += renderWordSection('Education', sections.education);
+    html += renderWordSection('Technical Skills', sections.skills);
+    html += renderWordSection('Professional Experience', sections.experience);
+    html += renderWordSection('Projects', sections.projects);
+    html += renderWordSection('Achievements & Activities', sections.achievements);
 
     html += `</body></html>`;
     return html;

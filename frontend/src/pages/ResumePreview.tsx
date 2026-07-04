@@ -27,6 +27,10 @@ export default function ResumePreview() {
     versions,
     saveVersion,
     deleteVersion,
+    candidateName,
+    candidateEmail,
+    candidatePhone,
+    candidateLinks,
   } = useResumeStore();
 
   const [activeSection, setActiveSection] = useState<keyof ParsedSections>('experience');
@@ -48,10 +52,13 @@ export default function ResumePreview() {
   const [compareVerA, setCompareVerA] = useState<string>('');
   const [compareVerB, setCompareVerB] = useState<string>('');
 
+  // Local structure validation errors state
+  const [structErrors, setStructErrors] = useState<string[] | null>(null);
+
   // Toast notifications
   const [toast, setToast] = useState<string | null>(null);
 
-  const baselineScore = analysisResult?.overallScore ? Math.max(50, analysisResult.overallScore - 12) : 70; // baseline original estimate
+  const baselineScore = analysisResult?.overallScore ? Math.max(50, analysisResult.overallScore - 12) : 70;
   const currentScore = analysisResult?.overallScore || 0;
 
   const currentSections = analysisResult?.parsedSections;
@@ -87,6 +94,70 @@ export default function ResumePreview() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Local metadata validation check
+  const validateResumeStructure = (orig: ParsedSections, opt: ParsedSections): string[] => {
+    const issues: string[] = [];
+    if (!opt || !orig) return ['Resume sections are missing.'];
+
+    const checkHeaders = (sec: keyof ParsedSections, label: string) => {
+      const origList = orig[sec] || [];
+      const optList = opt[sec] || [];
+      origList.forEach((line) => {
+        const trimmed = line.trim();
+        const isHeader = trimmed.length > 0 &&
+                         !trimmed.startsWith('•') &&
+                         !trimmed.startsWith('-') &&
+                         !trimmed.startsWith('*');
+        if (isHeader) {
+          const cleanLine = trimmed.toLowerCase();
+          const found = optList.some(optLine => optLine.toLowerCase().includes(cleanLine) || cleanLine.includes(optLine.toLowerCase()));
+          if (!found) {
+            issues.push(`Preservation error: ${label} header "${trimmed}" is missing.`);
+          }
+        }
+      });
+    };
+
+    checkHeaders('experience', 'Experience');
+    checkHeaders('projects', 'Projects');
+    checkHeaders('education', 'Education');
+    checkHeaders('achievements', 'Achievements');
+
+    // Check Dates preservation
+    const dateRegex = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December|Present)\s+\d{4}|\b\d{4}\s*-\s*(?:\d{4}|Present)\b|\b\d{4}\b/gi;
+    const collectDates = (sections: ParsedSections) => {
+      const dates = new Set<string>();
+      Object.values(sections).flat().forEach((str) => {
+        const matches = String(str).match(dateRegex);
+        if (matches) {
+          matches.forEach(m => dates.add(m.trim().toLowerCase()));
+        }
+      });
+      return dates;
+    };
+
+    const origDates = collectDates(orig);
+    const optDates = collectDates(opt);
+
+    origDates.forEach((date) => {
+      if (!optDates.has(date)) {
+        issues.push(`Date mismatch: Timeline date "${date}" was removed.`);
+      }
+    });
+
+    // Check Technical Skills preservation
+    const origSkills = (orig.skills || []).flatMap(s => s.split(/[,|]/)).map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
+    const optSkillsStr = (opt.skills || []).join(' ').toLowerCase();
+
+    origSkills.forEach((skill) => {
+      if (!optSkillsStr.includes(skill)) {
+        issues.push(`Technical skill mismatch: Core skill tag "${skill}" was removed.`);
+      }
+    });
+
+    return issues;
+  };
+
   // Run AI Validation on the backend
   const triggerAiValidation = async () => {
     if (!currentSections) return;
@@ -105,7 +176,6 @@ export default function ResumePreview() {
       }
     } catch (err: any) {
       console.error('Validation error:', err);
-      // Offline fallback success
       setValidationResult({
         status: 'Resume Ready',
         issues: [],
@@ -116,19 +186,31 @@ export default function ResumePreview() {
     }
   };
 
-  // Trigger Backend PDF rendering stream
+  // Trigger Backend PDF rendering stream with validation checks
   const handleExportPdf = async () => {
     if (!currentSections) return;
+    
+    // 1. Run local validation checks
+    const errors = validateResumeStructure(original, currentSections);
+    if (errors.length > 0) {
+      setStructErrors(errors);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showToastMsg('Export blocked: validation checks failed.');
+      return;
+    }
+    setStructErrors(null);
+
     try {
       showToastMsg('Preparing SDE PDF layout...');
       const response = await axios.post(
         '/api/resume/export/pdf',
         {
-          name: 'Anshika Aggarwal', // Defaults
-          email: 'aggarwalanshika4@gmail.com',
-          phone: '+91-8707881770',
-          links: 'LinkedIn | LeetCode | GitHub',
+          name: candidateName,
+          email: candidateEmail,
+          phone: candidatePhone,
+          links: candidateLinks,
           parsedSections: currentSections,
+          originalSections: original, // Pass to backend for server-side validation
         },
         { responseType: 'blob' }
       );
@@ -144,25 +226,37 @@ export default function ResumePreview() {
       URL.revokeObjectURL(url);
       
       showToastMsg('PDF exported successfully!');
-    } catch (err) {
+    } catch (err: any) {
       console.error('PDF export error:', err);
-      showToastMsg('Failed to generate backend PDF.');
+      showToastMsg('Failed to generate PDF. Verification failed.');
     }
   };
 
-  // Trigger Backend Word rendering stream
+  // Trigger Backend Word rendering stream with validation checks
   const handleExportDocx = async () => {
     if (!currentSections) return;
+
+    // 1. Run local validation checks
+    const errors = validateResumeStructure(original, currentSections);
+    if (errors.length > 0) {
+      setStructErrors(errors);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showToastMsg('Export blocked: validation checks failed.');
+      return;
+    }
+    setStructErrors(null);
+
     try {
       showToastMsg('Preparing SDE Word layout...');
       const response = await axios.post(
         '/api/resume/export/docx',
         {
-          name: 'Anshika Aggarwal',
-          email: 'aggarwalanshika4@gmail.com',
-          phone: '+91-8707881770',
-          links: 'LinkedIn | LeetCode | GitHub',
+          name: candidateName,
+          email: candidateEmail,
+          phone: candidatePhone,
+          links: candidateLinks,
           parsedSections: currentSections,
+          originalSections: original, // Pass to backend for server-side validation
         },
         { responseType: 'blob' }
       );
@@ -178,9 +272,9 @@ export default function ResumePreview() {
       URL.revokeObjectURL(url);
       
       showToastMsg('DOCX exported successfully!');
-    } catch (err) {
+    } catch (err: any) {
       console.error('DOCX export error:', err);
-      showToastMsg('Failed to generate backend Word document.');
+      showToastMsg('Failed to generate Word doc. Verification failed.');
     }
   };
 
@@ -310,6 +404,23 @@ export default function ResumePreview() {
           </div>
         )}
       </div>
+
+      {/* Structural Preservation warning panel */}
+      {structErrors && structErrors.length > 0 && (
+        <div className="p-5 bg-red-950/20 border border-red-900/40 rounded-2xl space-y-2 text-xs text-red-400">
+          <div className="font-extrabold flex items-center gap-1.5 uppercase tracking-wide">
+            <AlertTriangle className="w-4 h-4" /> Export Aborted: Structural Integrity Compromised
+          </div>
+          <p className="text-slate-400">
+            The optimized resume could not be generated. To prevent losing critical metadata (organization names, GPA, tech stacks, timeline dates), the following validation checks must pass:
+          </p>
+          <ul className="list-disc list-inside space-y-1 text-slate-300 pl-1 font-medium">
+            {structErrors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {!currentSections ? (
         <div className="p-12 border border-slate-850 bg-slate-900/10 rounded-2xl text-center space-y-4 max-w-xl mx-auto">
@@ -515,7 +626,7 @@ export default function ResumePreview() {
                     <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider block">
                       {compareVerB ? `${selectedVerB?.userNotes || 'Version B'} Sections` : 'Active Optimized Draft'}
                     </span>
-                    <div className="p-5 border border-indigo-950/40 bg-indigo-950/5 rounded-xl min-h-[220px] space-y-3 text-xs leading-relaxed text-slate-300">
+                    <div className="p-5 border border-indigo-950/40 bg-indigo-950/5 rounded-xl min-h-[220px] space-y-3 text-xs leading-relaxed text-slate-330">
                       {(() => {
                         const listA = compareVerA
                           ? selectedVerA?.parsedSections[activeSection] || []
@@ -608,7 +719,7 @@ export default function ResumePreview() {
                       {versions.map((ver) => (
                         <tr key={ver.id} className="hover:bg-slate-950/40 text-slate-300 font-medium">
                           <td className="py-3 px-3 font-semibold text-white">{ver.userNotes}</td>
-                          <td className="py-3 px-3 text-slate-500 font-mono">{ver.timestamp}</td>
+                          <td className="py-3 px-3 text-slate-550 font-mono">{ver.timestamp}</td>
                           <td className="py-3 px-3">
                             <span className="font-bold text-green-400 font-mono bg-green-950/40 px-2 py-0.5 border border-green-900/40 rounded">
                               {ver.atsScore}%
@@ -652,14 +763,14 @@ export default function ResumePreview() {
             >
               <div className="flex justify-between items-center border-b border-slate-850 pb-2">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider">Save Resume Revision</h3>
-                <button onClick={() => setShowSaveModal(false)} className="text-slate-500 hover:text-white">
+                <button onClick={() => setShowSaveModal(false)} className="text-slate-550 hover:text-white">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               <form onSubmit={handleSaveVersionSubmit} className="space-y-4 text-xs">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">User Notes (Optional)</label>
+                  <label className="text-[10px] text-slate-550 font-bold uppercase tracking-wider block">User Notes (Optional)</label>
                   <input
                     type="text"
                     value={userNotes}

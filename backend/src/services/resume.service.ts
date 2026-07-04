@@ -273,11 +273,12 @@ Target Section: ${section}
 Bullet Point to rewrite: "${bulletPoint}"
 
 Guidelines for the rewrite:
-1. Use strong active SDE action verbs (e.g., Engineered, Optimized, Architected, Spearheaded).
-2. Show measurable business or technical impact (e.g., "improving latency by 30%", "handling 10,000+ concurrent requests"). Use realistic SDE metrics based on the context, but do NOT invent completely fake credentials.
-3. Optimize for technical keywords (e.g., React, Node.js, Docker, Redis, SQL) where relevant.
-4. Improve grammar, clarity, readability, and professional SDE tone.
-5. Shorten if it's too long; expand if it's weak or vague.
+1. You are editing an existing resume. Do NOT redesign the resume. Do NOT remove sections. Do NOT merge sections. Do NOT invent projects. Do NOT invent experience. Do NOT remove technologies. Do NOT remove dates. Do NOT remove organization names. Only rewrite the requested bullet points while preserving every other piece of information exactly.
+2. Use strong active SDE action verbs (e.g., Engineered, Optimized, Architected, Spearheaded).
+3. Show measurable business or technical impact (e.g., "improving latency by 30%", "handling 10,000+ concurrent requests"). Use realistic SDE metrics based on the context, but do NOT invent completely fake credentials.
+4. Optimize for technical keywords (e.g., React, Node.js, Docker, Redis, SQL) where relevant.
+5. Improve grammar, clarity, readability, and professional SDE tone.
+6. Shorten if it's too long; expand if it's weak or vague.
 
 You MUST respond with a single, valid JSON object containing exactly the following schema. Do not output any preamble, explanation, or markdown wrappers.
 

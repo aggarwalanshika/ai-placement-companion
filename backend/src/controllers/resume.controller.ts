@@ -78,6 +78,18 @@ export class ResumeController {
 
     try {
       const merged = builderService.mergeResumeChanges(originalSections, acceptedSuggestions);
+      
+      const validationErrors = builderService.validateResumeStructure(originalSections, merged);
+      if (validationErrors.length > 0) {
+        logger.error('Build aborted: Structural checks failed.');
+        res.status(400).json({
+          success: false,
+          message: 'Structural preservation validation failed.',
+          errors: validationErrors
+        });
+        return;
+      }
+
       res.status(200).json({
         success: true,
         data: merged,
@@ -110,9 +122,22 @@ export class ResumeController {
 
   public static async exportPDF(req: Request, res: Response, next: NextFunction): Promise<void> {
     logger.info('API call received: POST /api/resume/export/pdf');
-    const { name, email, phone, links, parsedSections } = req.body;
+    const { name, email, phone, links, parsedSections, originalSections } = req.body;
 
     try {
+      if (originalSections) {
+        const validationErrors = builderService.validateResumeStructure(originalSections, parsedSections);
+        if (validationErrors.length > 0) {
+          logger.error('PDF generation aborted: Structural checks failed.');
+          res.status(400).json({
+            success: false,
+            message: 'PDF Export blocked: Structural preservation validation failed.',
+            errors: validationErrors
+          });
+          return;
+        }
+      }
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename=optimized_resume.pdf');
       builderService.generatePDF({ name, email, phone, links, parsedSections }, res);
@@ -124,9 +149,22 @@ export class ResumeController {
 
   public static async exportDOCX(req: Request, res: Response, next: NextFunction): Promise<void> {
     logger.info('API call received: POST /api/resume/export/docx');
-    const { name, email, phone, links, parsedSections } = req.body;
+    const { name, email, phone, links, parsedSections, originalSections } = req.body;
 
     try {
+      if (originalSections) {
+        const validationErrors = builderService.validateResumeStructure(originalSections, parsedSections);
+        if (validationErrors.length > 0) {
+          logger.error('Word document generation aborted: Structural checks failed.');
+          res.status(400).json({
+            success: false,
+            message: 'DOCX Export blocked: Structural preservation validation failed.',
+            errors: validationErrors
+          });
+          return;
+        }
+      }
+
       const html = builderService.generateDOCX({ name, email, phone, links, parsedSections });
       res.setHeader('Content-Type', 'application/msword');
       res.setHeader('Content-Disposition', 'attachment; filename=optimized_resume.doc');
