@@ -82,10 +82,33 @@ function parseSectionsFromText(text: string): ParsedSections {
   return sections;
 }
 
+// Check localStorage for persisted resume data to prevent resets on refresh
+const loadSavedState = () => {
+  if (typeof window === 'undefined') {
+    return { resumeText: null, resumeFileName: null, analysisResult: null };
+  }
+  try {
+    const saved = localStorage.getItem('resume-copilot-data');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        resumeText: parsed.resumeText || null,
+        resumeFileName: parsed.resumeFileName || null,
+        analysisResult: parsed.analysisResult || null,
+      };
+    }
+  } catch (e) {
+    console.error('Failed to load state from localStorage:', e);
+  }
+  return { resumeText: null, resumeFileName: null, analysisResult: null };
+};
+
+const savedState = loadSavedState();
+
 export const useResumeStore = create<ResumeState>((set, get) => ({
-  resumeText: null,
-  resumeFileName: null,
-  analysisResult: null,
+  resumeText: savedState.resumeText,
+  resumeFileName: savedState.resumeFileName,
+  analysisResult: savedState.analysisResult,
   history: [],
   future: [],
 
@@ -102,6 +125,19 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       parsedSections: parsed,
     };
     
+    try {
+      localStorage.setItem(
+        'resume-copilot-data',
+        JSON.stringify({
+          resumeText: text,
+          resumeFileName: fileName,
+          analysisResult: analysisWithSections,
+        })
+      );
+    } catch (e) {
+      console.error('Failed to persist resume data:', e);
+    }
+
     set({
       resumeText: text,
       resumeFileName: fileName,
@@ -111,17 +147,23 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
     });
   },
 
-  clearResume: () =>
+  clearResume: () => {
+    try {
+      localStorage.removeItem('resume-copilot-data');
+    } catch (e) {
+      console.error('Failed to remove persisted data:', e);
+    }
     set({
       resumeText: null,
       resumeFileName: null,
       analysisResult: null,
       history: [],
       future: [],
-    }),
+    });
+  },
 
   updateParsedSection: (section, index, newValue, scoreBoost = 0) => {
-    const { analysisResult, history } = get();
+    const { analysisResult, history, resumeText, resumeFileName } = get();
     if (!analysisResult || !analysisResult.parsedSections) return;
 
     // 1. Capture current state for undo
@@ -145,19 +187,34 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
     // Recalculate score (capping at 100)
     const newScore = Math.min(currentScore + scoreBoost, 100);
 
+    const updatedAnalysis = {
+      ...analysisResult,
+      overallScore: newScore,
+      parsedSections: newSections,
+    };
+
+    try {
+      localStorage.setItem(
+        'resume-copilot-data',
+        JSON.stringify({
+          resumeText,
+          resumeFileName,
+          analysisResult: updatedAnalysis,
+        })
+      );
+    } catch (e) {
+      console.error('Failed to persist updated section data:', e);
+    }
+
     set({
-      analysisResult: {
-        ...analysisResult,
-        overallScore: newScore,
-        parsedSections: newSections,
-      },
+      analysisResult: updatedAnalysis,
       history: [...history, newHistoryEntry],
       future: [], // clear redo stack on new action
     });
   },
 
   undo: () => {
-    const { history, future, analysisResult } = get();
+    const { history, future, analysisResult, resumeText, resumeFileName } = get();
     if (history.length === 0 || !analysisResult) return;
 
     // Pop the last entry from history
@@ -170,19 +227,34 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       overallScore: analysisResult.overallScore,
     };
 
+    const updatedAnalysis = {
+      ...analysisResult,
+      overallScore: previousState.overallScore,
+      parsedSections: previousState.parsedSections,
+    };
+
+    try {
+      localStorage.setItem(
+        'resume-copilot-data',
+        JSON.stringify({
+          resumeText,
+          resumeFileName,
+          analysisResult: updatedAnalysis,
+        })
+      );
+    } catch (e) {
+      console.error('Failed to persist undo data:', e);
+    }
+
     set({
-      analysisResult: {
-        ...analysisResult,
-        overallScore: previousState.overallScore,
-        parsedSections: previousState.parsedSections,
-      },
+      analysisResult: updatedAnalysis,
       history: newHistory,
       future: [...future, currentState],
     });
   },
 
   redo: () => {
-    const { history, future, analysisResult } = get();
+    const { history, future, analysisResult, resumeText, resumeFileName } = get();
     if (future.length === 0 || !analysisResult) return;
 
     // Pop the last entry from future
@@ -195,12 +267,27 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       overallScore: analysisResult.overallScore,
     };
 
+    const updatedAnalysis = {
+      ...analysisResult,
+      overallScore: nextState.overallScore,
+      parsedSections: nextState.parsedSections,
+    };
+
+    try {
+      localStorage.setItem(
+        'resume-copilot-data',
+        JSON.stringify({
+          resumeText,
+          resumeFileName,
+          analysisResult: updatedAnalysis,
+        })
+      );
+    } catch (e) {
+      console.error('Failed to persist redo data:', e);
+    }
+
     set({
-      analysisResult: {
-        ...analysisResult,
-        overallScore: nextState.overallScore,
-        parsedSections: nextState.parsedSections,
-      },
+      analysisResult: updatedAnalysis,
       history: [...history, currentState],
       future: newFuture,
     });
