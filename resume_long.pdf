@@ -1,0 +1,22 @@
+%PDF-1.4
+%쏢
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [ 3 0 R ] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << >> /MediaBox [ 0 0 612 792 ] /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 200 >>
+stream
+BT /F1 12 Tf 72 712 Td (Senior Software Development Engineer. 8 years experience building scalable backend platforms. Stack: Node.js, TypeScript, React, PostgreSQL, Docker, Redis, AWS, Kubernetes, System Design, CI/CD, Microservices. Managed API gateways.) Tj ET
+endstream
+endobj
+xref
+0 5
+trailer
+<< /Size 5 /Root 1 0 R >>
+%%EOF
