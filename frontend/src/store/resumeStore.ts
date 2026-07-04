@@ -23,6 +23,65 @@ interface ResumeState {
   redo: () => void;
 }
 
+// Client-side text parsing helper to split plain text into standard resume sections
+function parseSectionsFromText(text: string): ParsedSections {
+  const sections: ParsedSections = {
+    experience: [],
+    projects: [],
+    skills: [],
+    education: [],
+    achievements: [],
+  };
+
+  if (!text) return sections;
+
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  let currentSection: keyof ParsedSections | null = null;
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    
+    // Detect standard section headers
+    if (lower.startsWith('education') || lower === 'education') {
+      currentSection = 'education';
+      continue;
+    } else if (lower.startsWith('experience') || lower.startsWith('professional experience') || lower === 'work history') {
+      currentSection = 'experience';
+      continue;
+    } else if (lower.startsWith('projects') || lower === 'personal projects') {
+      currentSection = 'projects';
+      continue;
+    } else if (lower.startsWith('skills') || lower.startsWith('technical skills') || lower.startsWith('skills and interests')) {
+      currentSection = 'skills';
+      continue;
+    } else if (lower.startsWith('achievements') || lower.startsWith('experience and achievements') || lower.startsWith('extracurriculars')) {
+      currentSection = 'achievements';
+      continue;
+    } else if (lower.startsWith('declaration')) {
+      // End parsing at declaration footer
+      currentSection = null;
+      continue;
+    }
+
+    if (currentSection) {
+      // Remove standard bullet points markers (•, -, *, etc.)
+      const cleanLine = line.replace(/^[•\-\*]\s*/, '').trim();
+      if (cleanLine.length > 0) {
+        sections[currentSection].push(cleanLine);
+      }
+    }
+  }
+
+  // Fallback partitioning if sections are completely empty
+  if (sections.experience.length === 0 && sections.projects.length === 0) {
+    const half = Math.floor(lines.length / 2);
+    sections.experience = lines.slice(0, half).map(l => l.replace(/^[•\-\*]\s*/, '').trim());
+    sections.projects = lines.slice(half).map(l => l.replace(/^[•\-\*]\s*/, '').trim());
+  }
+
+  return sections;
+}
+
 export const useResumeStore = create<ResumeState>((set, get) => ({
   resumeText: null,
   resumeFileName: null,
@@ -31,17 +90,18 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   future: [],
 
   setResumeData: (text, fileName, analysis) => {
-    // If parsedSections is missing, normalize it to avoid runtime exceptions
+    let parsed = analysis.parsedSections;
+    
+    // Normalize and run fallback client parsing if empty
+    if (!parsed || (parsed.experience.length === 0 && parsed.projects.length === 0)) {
+      parsed = parseSectionsFromText(text);
+    }
+
     const analysisWithSections = {
       ...analysis,
-      parsedSections: analysis.parsedSections || {
-        experience: [],
-        projects: [],
-        skills: [],
-        education: [],
-        achievements: [],
-      },
+      parsedSections: parsed,
     };
+    
     set({
       resumeText: text,
       resumeFileName: fileName,
