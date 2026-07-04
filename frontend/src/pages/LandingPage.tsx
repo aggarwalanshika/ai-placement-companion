@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 import {
   ArrowRight,
   Target,
-  Brain,
+  Sparkles,
   MessageSquare,
-  Award,
-  Map,
+  History,
+  Download,
   Play,
   Layers,
 } from 'lucide-react';
@@ -36,9 +36,9 @@ export default function LandingPage() {
       color: 'text-green-400',
     },
     {
-      title: 'AI Interview Simulator',
-      description: 'Adaptive speech-to-text panels mimicking real technical, HR, and project description grilling.',
-      icon: Brain,
+      title: 'AI Resume Rewriter',
+      description: 'Instantly refactor weak, passive resume bullet points using active SDE action verbs and metrics.',
+      icon: Sparkles,
       color: 'text-indigo-400',
     },
     {
@@ -49,20 +49,20 @@ export default function LandingPage() {
     },
     {
       title: 'AI Resume Chat',
-      description: 'Converse directly with a RAG agent trained on your resume to practice custom interview queries.',
+      description: 'Converse directly with a RAG agent trained on your resume to practice custom technical queries.',
       icon: MessageSquare,
       color: 'text-purple-400',
     },
     {
-      title: 'DSA Progress Tracker',
-      description: 'Monitor daily targets, difficulty metrics, active streaks, and tailored question feeds.',
-      icon: Award,
+      title: 'Version History',
+      description: 'Track resume drafts, edit logs, and monitor how your ATS score has improved over time.',
+      icon: History,
       color: 'text-orange-400',
     },
     {
-      title: 'Personalized Roadmap',
-      description: 'Dynamic syllabus maps guiding you from your current skill gap to day-1 interview readiness.',
-      icon: Map,
+      title: 'Optimal PDF Export',
+      description: 'Generate single-page, ATS-optimized print-ready PDFs matching executive scanning layouts.',
+      icon: Download,
       color: 'text-pink-400',
     },
   ];
