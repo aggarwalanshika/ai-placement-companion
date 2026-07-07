@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Loader } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Loader, Sparkles } from 'lucide-react';
 import { api } from '../services/api.ts';
 import { useAuthStore } from '../store/authStore.ts';
 
@@ -9,6 +9,8 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [guestStep, setGuestStep] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,12 +22,45 @@ export default function Login() {
       const response = await api.post('/auth/login', { email, password });
       const { user, accessToken } = response.data;
       useAuthStore.getState().setAuth(user, accessToken);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed. Please verify credentials.');
       setLoading(false);
     }
   };
+
+  const handleGuestLogin = () => {
+    setGuestLoading(true);
+    setGuestStep('Setting up sandbox session...');
+    
+    setTimeout(() => {
+      setGuestStep('Securing guest token...');
+      setTimeout(() => {
+        setGuestStep('Workspace ready!');
+        setTimeout(() => {
+          useAuthStore.getState().setAuth(
+            { id: 'guest-123', email: 'guest@recruiter.com', fullName: 'Guest Recruiter' },
+            'mock-guest-token'
+          );
+          navigate('/dashboard');
+        }, 500);
+      }, 800);
+    }, 800);
+  };
+
+  if (guestLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+        <div className="space-y-4 text-center max-w-sm">
+          <Loader className="animate-spin h-8 w-8 text-blue-600 mx-auto" />
+          <div>
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">{guestStep}</span>
+            <span className="text-[10px] text-slate-500 block mt-1">Initializing premium guest dashboard profile.</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative select-none">
@@ -104,6 +139,16 @@ export default function Login() {
                     Sign In <ArrowRight className="w-4 h-4" />
                   </>
                 )}
+              </button>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 mt-6">
+              <button
+                type="button"
+                onClick={handleGuestLogin}
+                className="w-full flex justify-center items-center gap-1.5 py-2.5 px-4 border border-slate-200 rounded-xl shadow-2xs text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 focus:outline-none transition-all"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-500 animate-pulse" /> Continue as Guest (Demo Access)
               </button>
             </div>
           </form>
