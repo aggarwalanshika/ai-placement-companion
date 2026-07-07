@@ -46,6 +46,228 @@ interface JobMatchResult {
   estimatedATSScoreAfterChanges: number;
 }
 
+interface SkillGraphProps {
+  matched: string[];
+  missing: string[];
+  showToast: (msg: string) => void;
+}
+
+export function InteractiveSkillGraph({ matched, missing, showToast }: SkillGraphProps) {
+  const [nodes, setNodes] = useState<any[]>([]);
+  const [selectedNode, setSelectedNode] = useState<any | null>(null);
+  const [time, setTime] = useState(0);
+
+  useEffect(() => {
+    const list: any[] = [];
+    const allKeywords = [
+      ...matched.map(name => ({ name, type: 'matched' as const })),
+      ...missing.map(name => ({ name, type: 'missing' as const }))
+    ].slice(0, 16); 
+
+    allKeywords.forEach((item, idx) => {
+      const angle = (idx * 2 * Math.PI) / allKeywords.length;
+      const radius = item.type === 'matched' ? 115 + (idx % 2) * 15 : 155 + (idx % 2) * 15;
+      
+      const advice = item.type === 'matched'
+        ? `Validated in profile: matching target requirements. Ready to discuss implementation architectural metrics during technical SDE review.`
+        : `Critical Skill Gap: Add to your experience section by explaining quantified SDE outcomes (e.g. latency reduced by 15% using ${item.name} caching).`;
+
+      list.push({
+        id: `node-${idx}`,
+        name: item.name,
+        type: item.type,
+        angle,
+        radius,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.8 + Math.random() * 0.4,
+        advice
+      });
+    });
+
+    setNodes(list);
+  }, [matched, missing]);
+
+  useEffect(() => {
+    let animId: number;
+    const update = () => {
+      setTime((t) => t + 0.012);
+      animId = requestAnimationFrame(update);
+    };
+    animId = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  return (
+    <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+      <div>
+        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+          <Sparkles className="w-4 h-4 text-blue-600 animate-pulse" /> SDE Skill Alignment Map
+        </h3>
+        <p className="text-[10px] text-slate-500 mt-0.5">Interactive visual blueprint of your skills matching targeted JD anchors. Hover or click nodes to check AI suggestions.</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
+        
+        {/* SVG Viewport */}
+        <div className="lg:col-span-3 h-[420px] bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center">
+          
+          {/* Blueprint Dot Pattern background */}
+          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
+            backgroundImage: 'radial-gradient(#94a3b8 1.5px, transparent 1.5px)',
+            backgroundSize: '16px 16px'
+          }} />
+
+          <svg className="w-full h-full" viewBox="0 0 500 420">
+            <defs>
+              <filter id="node-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+
+            {/* Grid Crosshair anchor in center */}
+            <line x1="250" y1="40" x2="250" y2="380" stroke="#e2e8f0" strokeDasharray="3 3" />
+            <line x1="50" y1="210" x2="450" y2="210" stroke="#e2e8f0" strokeDasharray="3 3" />
+
+            {/* Connecting lines */}
+            {nodes.map((node) => {
+              const ox = Math.cos(time * node.speed + node.phase) * 8;
+              const oy = Math.sin(time * node.speed + node.phase) * 8;
+              const nx = 250 + Math.cos(node.angle) * node.radius + ox;
+              const ny = 210 + Math.sin(node.angle) * node.radius + oy;
+
+              const isMatched = node.type === 'matched';
+              return (
+                <line
+                  key={`line-${node.id}`}
+                  x1="250"
+                  y1="210"
+                  x2={nx}
+                  y2={ny}
+                  stroke={isMatched ? '#10b981' : '#f43f5e'}
+                  strokeWidth={isMatched ? '1.5' : '1'}
+                  strokeDasharray={isMatched ? 'none' : '3 3'}
+                  opacity={selectedNode?.id === node.id ? 1 : 0.3}
+                  className="transition-opacity duration-300"
+                />
+              );
+            })}
+
+            {/* Center target role hub */}
+            <circle cx="250" cy="210" r="24" fill="#eff6ff" stroke="#2563eb" strokeWidth="2.5" />
+            <circle cx="250" cy="210" r="6" fill="#2563eb" />
+            <text x="250" y="248" textAnchor="middle" className="text-[8.5px] font-sans font-bold fill-slate-800 uppercase tracking-wider">Target JD</text>
+
+            {/* Floating skill nodes */}
+            {nodes.map((node) => {
+              const ox = Math.cos(time * node.speed + node.phase) * 8;
+              const oy = Math.sin(time * node.speed + node.phase) * 8;
+              const nx = 250 + Math.cos(node.angle) * node.radius + ox;
+              const ny = 210 + Math.sin(node.angle) * node.radius + oy;
+
+              const isSelected = selectedNode?.id === node.id;
+              const isMatched = node.type === 'matched';
+
+              return (
+                <g
+                  key={node.id}
+                  onClick={() => setSelectedNode(node)}
+                  className="cursor-pointer group"
+                >
+                  <circle
+                    cx={nx}
+                    cy={ny}
+                    r="16"
+                    fill="transparent"
+                    stroke={isSelected ? '#3b82f6' : 'transparent'}
+                    strokeWidth="2"
+                    className="transition-all duration-300"
+                  />
+
+                  <circle
+                    cx={nx}
+                    cy={ny}
+                    r="10"
+                    fill="white"
+                    stroke={isMatched ? '#10b981' : '#f43f5e'}
+                    strokeWidth="2"
+                    filter={isSelected ? 'url(#node-glow)' : 'none'}
+                    className="group-hover:scale-110 transition-transform duration-300"
+                  />
+
+                  <circle
+                    cx={nx}
+                    cy={ny}
+                    r="3.5"
+                    fill={isMatched ? '#10b981' : '#f43f5e'}
+                  />
+
+                  <text
+                    x={nx}
+                    y={ny + 24}
+                    textAnchor="middle"
+                    className={`text-[8px] font-sans font-semibold tracking-wide uppercase transition-colors duration-200 ${
+                      isSelected ? 'fill-blue-650 font-extrabold' : 'fill-slate-600 group-hover:fill-slate-900'
+                    }`}
+                  >
+                    {node.name}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        {/* Dynamic Detail Card Sidebar */}
+        <div className="lg:col-span-2 space-y-4">
+          {selectedNode ? (
+            <div className="p-5 border border-slate-200 bg-white rounded-2xl shadow-xs space-y-3.5 text-xs">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <span className="font-bold text-slate-900 text-sm uppercase tracking-wide">
+                  {selectedNode.name}
+                </span>
+                <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase ${
+                  selectedNode.type === 'matched' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-750 border border-red-200'
+                }`}>
+                  {selectedNode.type}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-[9px] text-slate-500 uppercase font-bold block mb-1">ATS Recommendation Details</span>
+                <p className="text-slate-700 leading-relaxed font-medium">
+                  {selectedNode.advice}
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(selectedNode.name);
+                    showToast(`Copied ${selectedNode.name}!`);
+                  }}
+                  className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700 transition-colors"
+                >
+                  Copy Keyword
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 border border-slate-200 bg-slate-50/50 rounded-2xl text-center space-y-3 text-xs text-slate-500 italic h-[250px] flex flex-col justify-center items-center shadow-inner">
+              <Briefcase className="w-8 h-8 text-slate-400 animate-bounce" />
+              <div>
+                <h4 className="font-bold text-slate-800 uppercase not-italic text-[10px] tracking-wider">Explore the Graph</h4>
+                <p className="mt-1">Click on any floating skill node inside the blueprint mapping dashboard to evaluate AI advice details.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export default function JobDescriptionMatcher() {
   const navigate = useNavigate();
   const { resumeText, resumeFileName, setResumeData, clearResume } = useResumeStore();
@@ -226,7 +448,7 @@ export default function JobDescriptionMatcher() {
       <div className="flex justify-between items-center border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-950 flex items-center gap-1.5">
-            <Briefcase className="w-5 h-5 text-indigo-650" /> AI Job Description Matcher
+            <Briefcase className="w-5 h-5 text-indigo-655" /> AI Job Description Matcher
           </h1>
           <p className="text-slate-550 text-xs">Compare your resume directly with a targeted job listing to identify critical keyword gaps.</p>
         </div>
@@ -255,7 +477,7 @@ export default function JobDescriptionMatcher() {
               {/* Job Description Textarea */}
               <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-xs">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Paste Job Description</h3>
+                  <h3 className="text-xs font-bold text-slate-850 uppercase tracking-wider">Paste Job Description</h3>
                   <span className="text-[10px] text-slate-400 font-mono">
                     {jobDescription.length} characters
                   </span>
@@ -269,7 +491,7 @@ export default function JobDescriptionMatcher() {
                 />
 
                 {errorMessage && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 text-xs text-red-650">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 text-xs text-red-655">
                     <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
                     <span>{errorMessage}</span>
                   </div>
@@ -292,14 +514,14 @@ export default function JobDescriptionMatcher() {
             <div className="lg:col-span-2 space-y-6">
               <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-indigo-600" /> Resume Target Source
+                  <FileText className="w-4 h-4 text-indigo-650" /> Resume Target Source
                 </h3>
 
                 {resumeFileName ? (
                   <div className="space-y-4">
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs">
-                        <FileText className="w-5 h-5 text-green-500" />
+                        <FileText className="w-5 h-5 text-green-505" />
                         <div>
                           <span className="text-slate-800 font-semibold block truncate max-w-[160px]">{resumeFileName}</span>
                           <span className="text-[10px] text-slate-500 block">Preloaded from previous scan</span>
@@ -307,7 +529,7 @@ export default function JobDescriptionMatcher() {
                       </div>
                       <button
                         onClick={clearResume}
-                        className="text-[10px] font-bold text-red-500 hover:underline"
+                        className="text-[10px] font-bold text-red-550 hover:underline"
                       >
                         Remove
                       </button>
@@ -324,7 +546,7 @@ export default function JobDescriptionMatcher() {
                       className="p-8 border-2 border-dashed border-slate-250 hover:border-slate-350 bg-white rounded-xl text-center cursor-pointer flex flex-col items-center justify-center space-y-3 transition-colors"
                     >
                       <FileText className="w-6 h-6 text-slate-400" />
-                      <span className="text-xs text-slate-500 font-medium">Click to upload a resume file (PDF/DOCX)</span>
+                      <span className="text-xs text-slate-550 font-medium">Click to upload a resume file (PDF/DOCX)</span>
                     </div>
 
                     <input
@@ -422,12 +644,12 @@ export default function JobDescriptionMatcher() {
                 </div>
 
                 <div className="relative h-32 w-32 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full shadow-inner my-6">
-                  <span className="text-3xl font-extrabold text-indigo-600 font-mono">{animatedScore}%</span>
+                  <span className="text-3xl font-extrabold text-indigo-650 font-mono">{animatedScore}%</span>
                   <div className="absolute inset-2 rounded-full border-2 border-indigo-500/10 border-t-indigo-600 animate-spin-slow" />
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Interview Probability</span>
+                  <span className="text-[10px] text-slate-450 font-bold uppercase tracking-wider block">Interview Probability</span>
                   <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider ${
                     matchResult.interviewProbability === 'High' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-yellow-50 text-yellow-750 border border-yellow-200'
                   }`}>
@@ -449,7 +671,7 @@ export default function JobDescriptionMatcher() {
                 <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-100 mt-6">
                   {[
                     { name: 'Skills Match', score: matchResult.subScores.skillsMatch, color: 'bg-blue-500', text: 'text-blue-600' },
-                    { name: 'Experience Match', score: matchResult.subScores.experienceMatch, color: 'bg-indigo-500', text: 'text-indigo-650' },
+                    { name: 'Experience Match', score: matchResult.subScores.experienceMatch, color: 'bg-indigo-550', text: 'text-indigo-650' },
                     { name: 'Projects Match', score: matchResult.subScores.projectMatch, color: 'bg-purple-500', text: 'text-purple-600' },
                     { name: 'Education Match', score: matchResult.subScores.educationMatch, color: 'bg-green-500', text: 'text-green-600' },
                   ].map((sub, idx) => (
@@ -468,6 +690,13 @@ export default function JobDescriptionMatcher() {
 
             </div>
 
+            {/* CRAZY NODE GRAPH COMPONENT: SDE Skill Alignment Map */}
+            <InteractiveSkillGraph
+              matched={matchResult.matchedKeywords}
+              missing={matchResult.missingKeywords}
+              showToast={showToast}
+            />
+
             {/* Keyword mappings & missing links */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
               
@@ -480,7 +709,7 @@ export default function JobDescriptionMatcher() {
                 <div className="space-y-4">
                   {/* Matched Keywords */}
                   <div className="space-y-2">
-                    <span className="text-[9px] text-green-600 font-bold uppercase tracking-wider block">Matched Keywords</span>
+                    <span className="text-[9px] text-green-655 font-bold uppercase tracking-wider block">Matched Keywords</span>
                     <div className="flex flex-wrap gap-1.5">
                       {matchResult.matchedKeywords.map((kw, i) => (
                         <span key={i} className="text-[10px] px-2 py-0.5 bg-green-50 border border-green-200 text-green-700 rounded-md">
@@ -493,10 +722,10 @@ export default function JobDescriptionMatcher() {
 
                   {/* Missing Keywords */}
                   <div className="space-y-2">
-                    <span className="text-[9px] text-red-650 font-bold uppercase tracking-wider block">Missing Keywords Gaps</span>
+                    <span className="text-[9px] text-red-655 font-bold uppercase tracking-wider block">Missing Keywords Gaps</span>
                     <div className="flex flex-wrap gap-1.5">
                       {matchResult.missingKeywords.map((kw, i) => (
-                        <span key={i} className="text-[10px] px-2 py-0.5 bg-red-50 border border-red-200 text-red-700 rounded-md">
+                        <span key={i} className="text-[10px] px-2 py-0.5 bg-red-50 border border-red-200 text-red-705 rounded-md">
                           {kw}
                         </span>
                       ))}
@@ -526,7 +755,7 @@ export default function JobDescriptionMatcher() {
               <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Top 10 Keywords to Add (Highest ATS weight)</h3>
               <div className="flex flex-wrap gap-2">
                 {matchResult.top10KeywordsToAdd.map((kw, i) => (
-                  <span key={i} className="text-xs font-semibold px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-700 rounded-lg">
+                  <span key={i} className="text-xs font-semibold px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-705 rounded-lg">
                     {kw}
                   </span>
                 ))}
@@ -541,11 +770,11 @@ export default function JobDescriptionMatcher() {
               
               <div className="space-y-3">
                 {matchResult.optimizedBulletPoints.map((bp, i) => (
-                  <div key={i} className="p-3.5 bg-slate-55 border border-slate-200 rounded-xl flex items-center justify-between gap-4 text-xs">
+                  <div key={i} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-4 text-xs">
                     <p className="text-slate-700 leading-relaxed italic font-medium">"{bp}"</p>
                     <button
                       onClick={() => copyToClipboard(bp)}
-                      className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-800 flex-shrink-0 transition-colors"
+                      className="p-1.5 hover:bg-slate-150 rounded-lg text-slate-400 hover:text-slate-850 flex-shrink-0 transition-colors"
                       title="Copy to Clipboard"
                     >
                       <Copy className="w-4 h-4" />
@@ -563,7 +792,7 @@ export default function JobDescriptionMatcher() {
                 <span className="text-[10px] text-indigo-650 font-bold uppercase tracking-wider block flex items-center gap-1">
                   <ThumbsUp className="w-3.5 h-3.5 text-indigo-500" /> Experience Assessment
                 </span>
-                <p className="text-xs text-slate-600 leading-relaxed">{matchResult.experienceAnalysis}</p>
+                <p className="text-xs text-slate-650 leading-relaxed">{matchResult.experienceAnalysis}</p>
               </div>
 
               {/* Projects */}
@@ -571,7 +800,7 @@ export default function JobDescriptionMatcher() {
                 <span className="text-[10px] text-blue-650 font-bold uppercase tracking-wider block flex items-center gap-1">
                   <ThumbsUp className="w-3.5 h-3.5 text-blue-500" /> Projects Assessment
                 </span>
-                <p className="text-xs text-slate-600 leading-relaxed">{matchResult.projectAnalysis}</p>
+                <p className="text-xs text-slate-650 leading-relaxed">{matchResult.projectAnalysis}</p>
               </div>
 
               {/* Hiring Recommendation */}
@@ -579,7 +808,7 @@ export default function JobDescriptionMatcher() {
                 <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider block flex items-center gap-1">
                   <TrendingUp className="w-3.5 h-3.5 text-purple-500" /> Hiring Recommendation
                 </span>
-                <p className="text-xs text-slate-600 leading-relaxed">{matchResult.hiringRecommendation}</p>
+                <p className="text-xs text-slate-650 leading-relaxed">{matchResult.hiringRecommendation}</p>
               </div>
 
             </div>
@@ -593,7 +822,7 @@ export default function JobDescriptionMatcher() {
                 >
                   <Sparkles className="w-3.5 h-3.5 text-yellow-300" /> Improve Resume Bullet Points
                 </button>
-                <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-semibold rounded-lg text-slate-750 transition-all shadow-xs">
+                <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-semibold rounded-lg text-slate-700 transition-all shadow-xs">
                   <Download className="w-3.5 h-3.5" /> Download Match Report
                 </button>
                 <button
