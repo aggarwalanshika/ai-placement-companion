@@ -27,7 +27,6 @@ export default function ResumePreview() {
   const [userNotes, setUserNotes] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   
-  // Local state to track if the ATS resume was generated
   const [isGenerated, setIsGenerated] = useState(false);
 
   const currentSections = analysisResult?.parsedSections;
@@ -42,7 +41,6 @@ export default function ResumePreview() {
     showToastMsg('Brand new ATS resume generated successfully!');
   };
 
-  // Trigger Backend PDF rendering stream
   const handleExportPdf = async () => {
     if (!currentSections) return;
     try {
@@ -76,7 +74,6 @@ export default function ResumePreview() {
     }
   };
 
-  // Trigger Backend Word rendering stream
   const handleExportDocx = async () => {
     if (!currentSections) return;
     try {
@@ -106,16 +103,16 @@ export default function ResumePreview() {
       showToastMsg('DOCX exported successfully!');
     } catch (err: any) {
       console.error('DOCX export error:', err);
-      showToastMsg('Failed to generate DOCX.');
+      showToastMsg('Failed to generate Word document.');
     }
   };
 
   const handleSaveVersionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveVersion(userNotes.trim() || undefined);
+    saveVersion(userNotes);
     setUserNotes('');
     setShowSaveModal(false);
-    showToastMsg('Revision version logged.');
+    showToastMsg('Revision saved successfully!');
   };
 
   const personalLinks = currentSections?.personal?.links || [candidateLinks];
@@ -130,7 +127,7 @@ export default function ResumePreview() {
             initial={{ opacity: 0, y: -20, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: -20, x: '-50%' }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-650 text-xs font-bold text-white rounded-lg shadow-xl shadow-blue-500/10 flex items-center gap-1.5 border border-blue-500"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-650 text-xs font-bold text-white rounded-lg shadow-xl flex items-center gap-1.5 border border-blue-500"
           >
             <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" /> {toast}
           </motion.div>
@@ -138,10 +135,10 @@ export default function ResumePreview() {
       </AnimatePresence>
 
       {/* Header and Action controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-900 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1.5">
-            <Sparkles className="w-5 h-5 text-indigo-400" /> AI Resume Copilot Workspace
+          <h1 className="text-xl font-bold tracking-tight text-slate-950 flex items-center gap-1.5">
+            <Sparkles className="w-5 h-5 text-indigo-650" /> AI Resume Copilot Workspace
           </h1>
           <p className="text-slate-550 text-xs mt-0.5">Generate a professional, ATS-optimized resume directly from structured SDE profiles.</p>
         </div>
@@ -153,8 +150,8 @@ export default function ResumePreview() {
               disabled={history.length === 0}
               className={`p-2 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all ${
                 history.length === 0
-                  ? 'border-slate-850 text-slate-600 cursor-not-allowed'
-                  : 'border-slate-850 hover:border-slate-700 text-slate-300'
+                  ? 'border-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'border-slate-200 hover:border-slate-350 bg-white text-slate-700'
               }`}
               title="Undo change"
             >
@@ -165,8 +162,8 @@ export default function ResumePreview() {
               disabled={future.length === 0}
               className={`p-2 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all ${
                 future.length === 0
-                  ? 'border-slate-850 text-slate-600 cursor-not-allowed'
-                  : 'border-slate-850 hover:border-slate-700 text-slate-300'
+                  ? 'border-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'border-slate-200 hover:border-slate-350 bg-white text-slate-700'
               }`}
               title="Redo change"
             >
@@ -174,7 +171,7 @@ export default function ResumePreview() {
             </button>
             <button
               onClick={() => setShowSaveModal(true)}
-              className="flex items-center gap-1 px-3.5 py-2 bg-slate-900 border border-slate-850 hover:bg-slate-800 text-xs font-semibold rounded-lg text-slate-300 transition-all"
+              className="flex items-center gap-1 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-semibold rounded-lg text-slate-700 transition-all shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" /> Save Revision
             </button>
@@ -183,12 +180,12 @@ export default function ResumePreview() {
       </div>
 
       {!currentSections ? (
-        <div className="p-12 border border-slate-850 bg-slate-900/10 rounded-2xl text-center space-y-4 max-w-xl mx-auto">
-          <div className="mx-auto h-12 w-12 rounded-xl bg-slate-950/60 border border-slate-850 flex items-center justify-center text-slate-550">
+        <div className="p-12 border border-slate-200 bg-white rounded-2xl text-center space-y-4 max-w-xl mx-auto shadow-xs">
+          <div className="mx-auto h-12 w-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400">
             <FileText className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">No active resume loaded</h3>
+            <h3 className="text-sm font-bold text-slate-900">No active resume loaded</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
               Upload a resume PDF or DOCX file to begin.
             </p>
@@ -203,31 +200,31 @@ export default function ResumePreview() {
             {/* Left Column: Original Reference Resume */}
             <div className="space-y-3">
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block flex items-center gap-1">
-                <FileText className="w-3.5 h-3.5 text-slate-550" /> Original Uploaded Resume (Reference Only)
+                <FileText className="w-3.5 h-3.5 text-slate-400" /> Original Uploaded Resume (Reference Only)
               </span>
-              <div className="p-4 bg-slate-950 border border-slate-900 rounded-2xl h-[600px] overflow-y-auto font-mono text-[11px] leading-relaxed text-slate-400 whitespace-pre-wrap select-text selection:bg-indigo-900 selection:text-white">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl h-[600px] overflow-y-auto font-mono text-[11px] leading-relaxed text-slate-700 whitespace-pre-wrap select-text selection:bg-blue-100">
                 {resumeText || 'No text extracted.'}
               </div>
             </div>
 
             {/* Right Column: ATS Resume Preview Generator */}
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider block flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Generated ATS Resume Preview
+              <div className="flex justify-between items-center h-5">
+                <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider block flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Generated ATS Resume Preview
                 </span>
                 
                 {isGenerated && (
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={handleExportDocx}
-                      className="px-3 py-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-[11px] font-bold rounded-lg text-slate-200 transition-all"
+                      className="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-[11px] font-bold rounded-lg text-slate-700 transition-all shadow-xs"
                     >
                       Download DOCX
                     </button>
                     <button
                       onClick={handleExportPdf}
-                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-[11px] font-bold rounded-lg text-white transition-all shadow"
+                      className="px-3 py-1 bg-blue-650 hover:bg-blue-700 text-[11px] font-bold rounded-lg text-white transition-all shadow-xs"
                     >
                       Download PDF
                     </button>
@@ -237,33 +234,33 @@ export default function ResumePreview() {
 
               {!isGenerated ? (
                 /* Generator trigger panel */
-                <div className="p-12 border border-slate-850 bg-slate-900/10 rounded-2xl text-center space-y-5 h-[600px] flex flex-col items-center justify-center">
-                  <div className="h-10 w-10 rounded-xl bg-slate-950/65 border border-slate-850 flex items-center justify-center text-slate-550">
-                    <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
+                <div className="p-12 border border-slate-200 bg-white rounded-2xl text-center space-y-5 h-[600px] flex flex-col items-center justify-center shadow-xs">
+                  <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400">
+                    <Sparkles className="w-5 h-5 text-indigo-600 animate-pulse" />
                   </div>
                   <div className="max-w-xs">
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Ready to generate ATS layout</h4>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Ready to generate ATS layout</h4>
                     <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
                       Compiles a clean, SDE-aligned resume directly from your structured draft profile.
                     </p>
                   </div>
                   <button
                     onClick={handleGenerate}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white rounded-lg shadow transition-all flex items-center gap-1"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white rounded-lg shadow-sm transition-all flex items-center gap-1"
                   >
                     Generate Resume <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : (
                 /* Raw PDF Preview styled page mockup */
-                <div className="bg-white border border-slate-250 rounded-2xl h-[600px] overflow-y-auto p-8 shadow-2xl text-slate-800 font-serif text-[11px] leading-relaxed select-text selection:bg-blue-100 select-none">
+                <div className="bg-white border border-slate-250 rounded-2xl h-[600px] overflow-y-auto p-8 shadow-2xl text-slate-850 font-serif text-[11px] leading-relaxed select-text selection:bg-blue-100">
                   
                   {/* Personal Header */}
                   <div className="text-center space-y-1 pb-4 border-b border-slate-200">
                     <h2 className="text-lg font-bold text-slate-900 uppercase font-sans tracking-wide">
                       {currentSections?.personal?.name || candidateName}
                     </h2>
-                    <div className="text-[10px] text-slate-500 font-sans">
+                    <div className="text-[10px] text-slate-550 font-sans">
                       {[
                         currentSections?.personal?.email || candidateEmail,
                         currentSections?.personal?.phone || candidatePhone,
@@ -280,7 +277,7 @@ export default function ResumePreview() {
                       </h3>
                       <div className="mt-1.5 space-y-1">
                         {currentSections.education.map((edu: string, idx: number) => (
-                          <div key={idx} className="text-slate-700">{edu}</div>
+                          <div key={idx} className="text-slate-700 font-sans text-[10px]">{edu}</div>
                         ))}
                       </div>
                     </div>
@@ -320,7 +317,7 @@ export default function ResumePreview() {
                         {currentSections.projects.map((proj: ProjectEntry, idx: number) => (
                           <div key={idx} className="space-y-1">
                             <div className="flex justify-between items-baseline font-sans text-[10.5px]">
-                              <span className="font-bold text-slate-900">{proj.title} <span className="font-normal text-[10px] text-slate-500">[{proj.techStack}]</span></span>
+                              <span className="font-bold text-slate-900">{proj.title} <span className="font-normal text-[10px] text-slate-550">[{proj.techStack}]</span></span>
                               <span className="text-slate-500 italic text-[10px]">{proj.date}</span>
                             </div>
                             <ul className="list-disc list-inside pl-1 space-y-0.5 text-slate-700">
@@ -340,7 +337,7 @@ export default function ResumePreview() {
                       <h3 className="text-[11px] font-bold text-slate-900 uppercase font-sans border-b border-slate-200 pb-0.5 tracking-wider">
                         Skills
                       </h3>
-                      <div className="mt-1.5 text-slate-700">
+                      <div className="mt-1.5 text-slate-700 font-sans text-[10.5px]">
                         {currentSections.skills.join(', ')}
                       </div>
                     </div>
@@ -382,28 +379,28 @@ export default function ResumePreview() {
 
           {/* Revisions Log Table */}
           {versions.length > 0 && (
-            <div className="p-5 bg-slate-900/10 border border-slate-850 rounded-2xl space-y-4">
-              <span className="text-xs font-extrabold text-white uppercase tracking-wider block flex items-center gap-1.5">
-                <History className="w-4 h-4 text-indigo-400" /> Saved Revisions Log
+            <div className="p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
+              <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block flex items-center gap-1.5">
+                <History className="w-4 h-4 text-indigo-650" /> Saved Revisions Log
               </span>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-850 text-slate-500 font-bold text-[10px] uppercase tracking-wider">
+                    <tr className="border-b border-slate-200 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
                       <th className="py-2.5 px-3">Revision Notes</th>
                       <th className="py-2.5 px-3">Timestamp</th>
                       <th className="py-2.5 px-3">ATS Score</th>
                       <th className="py-2.5 px-3 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-900">
+                  <tbody className="divide-y divide-slate-100">
                     {versions.map((ver) => (
-                      <tr key={ver.id} className="hover:bg-slate-950/40 text-slate-300 font-medium">
-                        <td className="py-3 px-3 font-semibold text-white">{ver.userNotes}</td>
-                        <td className="py-3 px-3 text-slate-550 font-mono">{ver.timestamp}</td>
+                      <tr key={ver.id} className="hover:bg-slate-50 text-slate-700 font-medium">
+                        <td className="py-3 px-3 font-semibold text-slate-900">{ver.userNotes}</td>
+                        <td className="py-3 px-3 text-slate-500 font-mono">{ver.timestamp}</td>
                         <td className="py-3 px-3">
-                          <span className="font-bold text-green-400 font-mono bg-green-950/40 px-2 py-0.5 border border-green-900/40 rounded">
+                          <span className="font-bold text-green-600 font-mono bg-green-50 px-2 py-0.5 border border-green-200 rounded">
                             {ver.atsScore}%
                           </span>
                         </td>
@@ -413,7 +410,7 @@ export default function ResumePreview() {
                               restoreVersion(ver.id);
                               showToastMsg('Restored successfully.');
                             }}
-                            className="px-2.5 py-1 rounded bg-indigo-650 hover:bg-indigo-700 text-white font-bold transition-all text-[10px]"
+                            className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all text-[10px]"
                           >
                             Restore
                           </button>
@@ -422,7 +419,7 @@ export default function ResumePreview() {
                               deleteVersion(ver.id);
                               showToastMsg('Revision deleted.');
                             }}
-                            className="p-1 rounded text-red-400 hover:text-red-500 hover:bg-red-950/40 transition-all"
+                            className="p-1 rounded text-red-500 hover:text-red-650 hover:bg-red-50 transition-all"
                             title="Delete version"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -442,29 +439,29 @@ export default function ResumePreview() {
       {/* SAVE VERSION MODAL POPUP */}
       <AnimatePresence>
         {showSaveModal && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-slate-900 border border-slate-850 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4"
+              className="bg-white border border-slate-200 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4"
             >
-              <div className="flex justify-between items-center border-b border-slate-850 pb-2">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Save Resume Revision</h3>
-                <button onClick={() => setShowSaveModal(false)} className="text-slate-550 hover:text-white">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Save Resume Revision</h3>
+                <button onClick={() => setShowSaveModal(false)} className="text-slate-400 hover:text-slate-800">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               <form onSubmit={handleSaveVersionSubmit} className="space-y-4 text-xs">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-550 font-bold uppercase tracking-wider block">User Notes (Optional)</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">User Notes (Optional)</label>
                   <input
                     type="text"
                     value={userNotes}
                     onChange={(e) => setUserNotes(e.target.value)}
                     placeholder="e.g. Optimized experience bullet points"
-                    className="w-full bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-250 rounded-lg px-3 py-2 text-slate-900 placeholder-slate-450 focus:outline-none focus:border-indigo-500"
                     autoFocus
                   />
                 </div>
@@ -473,13 +470,13 @@ export default function ResumePreview() {
                   <button
                     type="button"
                     onClick={() => setShowSaveModal(false)}
-                    className="px-3.5 py-2 bg-slate-950 border border-slate-900 hover:bg-slate-900 font-semibold rounded-lg text-slate-400 transition-all"
+                    className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 font-semibold rounded-lg text-slate-600 transition-all"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 font-bold rounded-lg text-white transition-all shadow-md shadow-indigo-500/10"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-lg text-white transition-all shadow-xs"
                   >
                     Save Revision
                   </button>

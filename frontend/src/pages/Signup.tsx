@@ -36,42 +36,42 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative select-none">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative select-none">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <h2 className="text-center text-3xl font-extrabold text-white tracking-tight">
+        <h2 className="text-center text-3xl font-extrabold text-slate-900 tracking-tight">
           Create your account
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-450">
+        <p className="mt-2 text-center text-sm text-slate-550">
           Or{' '}
-          <Link to="/login" className="font-semibold text-blue-500 hover:text-blue-400 transition-colors">
+          <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-500 transition-colors">
             sign in to your existing account
           </Link>
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="bg-slate-900/40 backdrop-blur-lg border border-slate-800/80 py-8 px-4 shadow-2xl rounded-2xl sm:px-10">
+        <div className="bg-white border border-slate-200 py-8 px-4 shadow-2xl rounded-2xl sm:px-10">
           {success ? (
-            <div className="rounded-xl bg-green-950/40 border border-green-900/60 p-6 text-center space-y-3">
-              <CheckCircle2 className="mx-auto h-12 w-12 text-green-400" />
-              <h3 className="text-sm font-semibold text-white">Registration Successful!</h3>
-              <p className="text-xs text-green-300">
+            <div className="rounded-xl bg-green-50 border border-green-200 p-6 text-center space-y-3">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
+              <h3 className="text-sm font-semibold text-slate-900">Registration Successful!</h3>
+              <p className="text-xs text-green-600">
                 Redirecting you to the sign in screen...
               </p>
             </div>
           ) : (
             <form className="space-y-6" onSubmit={handleSubmit}>
               {error && (
-                <div className="rounded-xl bg-red-950/40 border border-red-900/60 p-4 flex gap-3 text-xs text-red-300">
-                  <AlertTriangle className="h-5 w-5 text-red-450 flex-shrink-0" />
+                <div className="rounded-xl bg-red-50 border border-red-200 p-4 flex gap-3 text-xs text-red-650">
+                  <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
 
               <div>
-                <label htmlFor="name" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <label htmlFor="name" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Full Name
                 </label>
                 <div className="mt-1">
@@ -82,14 +82,14 @@ export default function Signup() {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="appearance-none block w-full px-4 py-3 bg-slate-950/80 border border-slate-800/80 rounded-xl text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                    className="appearance-none block w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
                     placeholder="Enter your name"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Email Address
                 </label>
                 <div className="mt-1">
@@ -100,14 +100,14 @@ export default function Signup() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full px-4 py-3 bg-slate-950/80 border border-slate-800/80 rounded-xl text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                    className="appearance-none block w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
                     placeholder="name@university.edu"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Password
                 </label>
                 <div className="mt-1">
@@ -118,7 +118,7 @@ export default function Signup() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none block w-full px-4 py-3 bg-slate-950/80 border border-slate-800/80 rounded-xl text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                    className="appearance-none block w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
                     placeholder="••••••••"
                   />
                 </div>

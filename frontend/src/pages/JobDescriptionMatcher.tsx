@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
 import { useResumeStore } from '../store/resumeStore.js';
 import {
   FileText,
@@ -15,9 +15,9 @@ import {
   Copy,
   PlusCircle,
   ThumbsUp,
-  XCircle,
   TrendingUp,
 } from 'lucide-react';
+import { api } from '../services/api.ts';
 
 const easeCurve = [0.16, 1, 0.3, 1] as const;
 
@@ -47,6 +47,7 @@ interface JobMatchResult {
 }
 
 export default function JobDescriptionMatcher() {
+  const navigate = useNavigate();
   const { resumeText, resumeFileName, setResumeData, clearResume } = useResumeStore();
 
   const [jobDescription, setJobDescription] = useState('');
@@ -57,7 +58,6 @@ export default function JobDescriptionMatcher() {
   const [animatedScore, setAnimatedScore] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
-  // File upload state for fallback
   const [, setFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
@@ -73,7 +73,6 @@ export default function JobDescriptionMatcher() {
     'Preparing Report...',
   ];
 
-  // Show dynamic self-dismissing toasts
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -81,7 +80,6 @@ export default function JobDescriptionMatcher() {
     }, 3000);
   };
 
-  // Step loader timer
   useEffect(() => {
     if (matching) {
       const stepDuration = 600;
@@ -103,7 +101,6 @@ export default function JobDescriptionMatcher() {
     }
   }, [matching, steps.length]);
 
-  // Overall Score dial counter animation
   useEffect(() => {
     if (matchResult && !matching) {
       let currentVal = 0;
@@ -118,54 +115,69 @@ export default function JobDescriptionMatcher() {
         setAnimatedScore(currentVal);
         if (currentVal >= targetVal) {
           clearInterval(timer);
+          setAnimatedScore(targetVal);
         }
       }, stepTime);
       return () => clearInterval(timer);
-    } else {
-      setAnimatedScore(0);
     }
   }, [matchResult, matching]);
 
-  // Handle local fallback resume upload
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      setErrorMessage(null);
+  const handleAnalyzeMatch = async () => {
+    if (!resumeText) return;
+    setMatching(true);
+    setCurrentStepIndex(0);
+    setCompletedSteps([]);
+    setErrorMessage(null);
 
-      if (selectedFile.size > 5 * 1024 * 1024) {
-        setErrorMessage('File size exceeds the 5MB maximum limit.');
-        return;
+    try {
+      const response = await api.post('/job/match', {
+        resumeText,
+        jobDescription,
+      });
+
+      if (response.data && response.data.success) {
+        setMatchResult(response.data.data);
+      } else {
+        throw new Error('API request failed');
       }
+    } catch (err: any) {
+      setMatching(false);
+      setErrorMessage(err.response?.data?.message || 'Matching analysis failed. Please verify API configurations.');
+    }
+  };
 
-      setFile(selectedFile);
-      setUploadState('uploading');
-      setUploadProgress(0);
+  const handleUploadResumeFile = async (selectedFile: File) => {
+    setFile(selectedFile);
+    setUploadState('uploading');
+    setUploadProgress(0);
 
+    const interval = setInterval(() => {
+      setUploadProgress((p) => {
+        if (p < 100) return p + 10;
+        clearInterval(interval);
+        return 100;
+      });
+    }, 100);
+
+    try {
       const formData = new FormData();
       formData.append('resume', selectedFile);
 
-      try {
-        const response = await axios.post('/api/resume/analyze', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (progressEvent) => {
-            const total = progressEvent.total || selectedFile.size;
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / total);
-            setUploadProgress(percentCompleted);
-          },
-        });
+      const response = await api.post('/resume/analyze', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-        if (response.data && response.data.success && response.data.data) {
-          setUploadState('success');
-          const extText = response.data.data.resumeText || '';
-          setResumeData(extText, selectedFile.name, response.data.data);
-        } else {
-          throw new Error('API returned invalid format.');
-        }
-      } catch (err: any) {
-        console.error('File parsing failure:', err);
-        setUploadState('error');
-        setErrorMessage(err.response?.data?.message || err.message || 'Parsing failed.');
-      }
+      clearInterval(interval);
+      setUploadProgress(100);
+      setUploadState('success');
+      setResumeData(response.data.data.resumeText || '', selectedFile.name, response.data.data);
+      showToast('Resume parsed successfully.');
+    } catch (err: any) {
+      clearInterval(interval);
+      setUploadState('error');
+      setErrorMessage(err.response?.data?.message || 'Failed to parse resume upload.');
     }
   };
 
@@ -173,56 +185,28 @@ export default function JobDescriptionMatcher() {
     fileInputRef.current?.click();
   };
 
-  // Perform AI Match Analysis call
-  const handleAnalyzeMatch = async () => {
-    if (!resumeText || !jobDescription) return;
-
-    setErrorMessage(null);
-    setMatchResult(null);
-    setMatching(true);
-    setCurrentStepIndex(0);
-    setCompletedSteps([]);
-
-    try {
-      console.log('Sending resume and JD for match comparison...');
-      const response = await axios.post('/api/job/match', {
-        resumeText,
-        jobDescription,
-      });
-
-      console.log('Match JSON response:', response.data);
-
-      if (response.data && response.data.success && response.data.data) {
-        setMatchResult(response.data.data);
-      } else {
-        throw new Error('Invalid match result format from API.');
-      }
-    } catch (err: any) {
-      console.error('Match connection failure:', err);
-      setMatching(false);
-      setErrorMessage(err.response?.data?.message || err.message || 'Matching failed.');
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleUploadResumeFile(e.target.files[0]);
     }
   };
 
-  const copyBulletPoints = () => {
-    if (!matchResult || !matchResult.optimizedBulletPoints) return;
-    const formattedBullets = matchResult.optimizedBulletPoints
-      .map((b) => `- ${b}`)
-      .join('\n');
-    navigator.clipboard.writeText(formattedBullets);
-    showToast('Optimized bullet points copied to clipboard!');
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    showToast('Copied to clipboard!');
   };
 
   const resetMatcher = () => {
-    setJobDescription('');
     setMatchResult(null);
+    setJobDescription('');
+    setAnimatedScore(0);
     setUploadState('idle');
     setFile(null);
     setErrorMessage(null);
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-10">
+    <div className="space-y-6 max-w-6xl mx-auto pb-10 select-none">
       
       {/* Toast Alert System */}
       <AnimatePresence>
@@ -231,7 +215,7 @@ export default function JobDescriptionMatcher() {
             initial={{ opacity: 0, y: -20, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: -20, x: '-50%' }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-650 text-xs font-bold text-white rounded-lg shadow-xl shadow-blue-500/10 flex items-center gap-1.5 border border-blue-500"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-650 text-xs font-bold text-white rounded-lg shadow-xl flex items-center gap-1.5 border border-blue-500"
           >
             <Sparkles className="w-4 h-4 text-yellow-300" /> {toastMessage}
           </motion.div>
@@ -239,17 +223,17 @@ export default function JobDescriptionMatcher() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="flex justify-between items-center border-b border-slate-900 pb-4">
+      <div className="flex justify-between items-center border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1.5">
-            <Briefcase className="w-5 h-5 text-indigo-400" /> AI Job Description Matcher
+          <h1 className="text-xl font-bold tracking-tight text-slate-950 flex items-center gap-1.5">
+            <Briefcase className="w-5 h-5 text-indigo-650" /> AI Job Description Matcher
           </h1>
           <p className="text-slate-550 text-xs">Compare your resume directly with a targeted job listing to identify critical keyword gaps.</p>
         </div>
         {matchResult && (
           <button
             onClick={resetMatcher}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold rounded-lg text-slate-300 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-semibold rounded-lg text-slate-700 transition-all shadow-xs"
           >
             Match with Another JD
           </button>
@@ -269,10 +253,10 @@ export default function JobDescriptionMatcher() {
             <div className="lg:col-span-3 space-y-6">
               
               {/* Job Description Textarea */}
-              <div className="p-5 bg-slate-900/10 border border-slate-850 rounded-2xl space-y-3">
+              <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-xs">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Paste Job Description</h3>
-                  <span className="text-[10px] text-slate-500 font-mono">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Paste Job Description</h3>
+                  <span className="text-[10px] text-slate-400 font-mono">
                     {jobDescription.length} characters
                   </span>
                 </div>
@@ -281,12 +265,12 @@ export default function JobDescriptionMatcher() {
                   value={jobDescription}
                   onChange={(e) => setJobDescription(e.target.value)}
                   placeholder="Paste the SDE job listing description text here..."
-                  className="w-full h-80 bg-slate-950/80 border border-slate-850 rounded-xl p-4 text-xs text-slate-300 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none leading-relaxed"
+                  className="w-full h-80 bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-900 placeholder-slate-450 focus:outline-none focus:border-indigo-500 transition-colors resize-none leading-relaxed"
                 />
 
                 {errorMessage && (
-                  <div className="p-3 bg-red-950/40 border border-red-900/60 rounded-xl flex gap-2 text-xs text-red-300">
-                    <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 text-xs text-red-650">
+                    <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
@@ -295,7 +279,7 @@ export default function JobDescriptionMatcher() {
                   <button
                     onClick={handleAnalyzeMatch}
                     disabled={!resumeText || jobDescription.trim().length < 20}
-                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-700 hover:to-indigo-755 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-xl text-white shadow-xl shadow-blue-500/10 transition-all flex items-center justify-center gap-1.5"
+                    className="w-full py-3 bg-indigo-650 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-xl text-white shadow-xs transition-all flex items-center justify-center gap-1.5"
                   >
                     <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" /> Analyze Job Match
                   </button>
@@ -306,30 +290,30 @@ export default function JobDescriptionMatcher() {
 
             {/* Resume Upload Status Column (Right) */}
             <div className="lg:col-span-2 space-y-6">
-              <div className="p-5 bg-slate-900/10 border border-slate-850 rounded-2xl space-y-4">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-indigo-400" /> Resume Target Source
+              <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-indigo-600" /> Resume Target Source
                 </h3>
 
                 {resumeFileName ? (
                   <div className="space-y-4">
-                    <div className="p-4 bg-slate-955/60 border border-slate-900 rounded-xl flex items-center justify-between">
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs">
-                        <FileText className="w-5 h-5 text-green-400" />
+                        <FileText className="w-5 h-5 text-green-500" />
                         <div>
-                          <span className="text-white font-semibold block truncate max-w-[160px]">{resumeFileName}</span>
+                          <span className="text-slate-800 font-semibold block truncate max-w-[160px]">{resumeFileName}</span>
                           <span className="text-[10px] text-slate-500 block">Preloaded from previous scan</span>
                         </div>
                       </div>
                       <button
                         onClick={clearResume}
-                        className="text-[10px] font-bold text-red-400 hover:underline"
+                        className="text-[10px] font-bold text-red-500 hover:underline"
                       >
                         Remove
                       </button>
                     </div>
 
-                    <div className="text-[10px] text-slate-550 leading-relaxed italic bg-slate-950/20 p-3 rounded-lg border border-slate-900">
+                    <div className="text-[10px] text-slate-500 leading-relaxed italic bg-slate-50 p-3 rounded-lg border border-slate-200">
                       The analyzer will compare this preloaded resume against the JD. If you wish to use a different profile, click "Remove" and upload a new file.
                     </div>
                   </div>
@@ -337,10 +321,10 @@ export default function JobDescriptionMatcher() {
                   <div className="space-y-4">
                     <div
                       onClick={triggerFilePicker}
-                      className="p-8 border-2 border-dashed border-slate-800 hover:border-slate-700 bg-slate-950/30 hover:bg-slate-950/50 rounded-xl text-center cursor-pointer flex flex-col items-center justify-center space-y-3 transition-colors"
+                      className="p-8 border-2 border-dashed border-slate-250 hover:border-slate-350 bg-white rounded-xl text-center cursor-pointer flex flex-col items-center justify-center space-y-3 transition-colors"
                     >
-                      <UploadIcon className="w-6 h-6 text-slate-500" />
-                      <span className="text-xs text-slate-400">Click to upload a resume file (PDF/DOCX)</span>
+                      <FileText className="w-6 h-6 text-slate-400" />
+                      <span className="text-xs text-slate-500 font-medium">Click to upload a resume file (PDF/DOCX)</span>
                     </div>
 
                     <input
@@ -352,15 +336,18 @@ export default function JobDescriptionMatcher() {
                     />
 
                     {uploadState === 'uploading' && (
-                      <div className="space-y-1.5 text-xs">
-                        <div className="flex justify-between font-semibold">
-                          <span className="text-slate-400 flex items-center gap-1">
-                            <Loader className="w-3.5 h-3.5 animate-spin text-blue-500" /> Parsing resume...
+                      <div className="w-full space-y-2 pt-2">
+                        <div className="flex justify-between items-center text-[10px] text-slate-500">
+                          <span className="font-semibold flex items-center gap-1">
+                            <Loader className="animate-spin w-3 h-3 text-blue-650" /> Uploading file...
                           </span>
-                          <span className="text-slate-400">{uploadProgress}%</span>
+                          <span className="font-mono">{uploadProgress}%</span>
                         </div>
-                        <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-500 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                        <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-655 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
                         </div>
                       </div>
                     )}
@@ -368,59 +355,47 @@ export default function JobDescriptionMatcher() {
                 )}
               </div>
             </div>
-
           </motion.div>
         )}
 
-        {/* Step Loader Overlay */}
+        {/* Step 2: Analyzer full-screen loader */}
         {matching && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-[#070a13] flex flex-col items-center justify-center p-6 select-none"
+            className="fixed inset-0 z-50 bg-slate-50 flex flex-col items-center justify-center p-6"
           >
-            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500/5 rounded-full blur-[100px] pointer-events-none" />
 
             <div className="w-full max-w-md space-y-8 relative z-10">
               <div className="text-center space-y-2">
-                <Cpu className="mx-auto h-10 w-10 text-indigo-400 animate-pulse" />
-                <h3 className="text-base font-bold text-white tracking-wide uppercase">AI JD Comparative Scan</h3>
-                <p className="text-xs text-slate-500">Cross-referencing candidate profile matrices with requested keywords.</p>
+                <Cpu className="mx-auto h-10 w-10 text-blue-600 animate-pulse" />
+                <h3 className="text-base font-bold text-slate-800 tracking-wide uppercase">AI Cross-Matching Core</h3>
+                <p className="text-xs text-slate-550">Mapping profiles against target SDE parameters...</p>
               </div>
 
-              {/* Progress workflow list */}
-              <div className="space-y-4">
-                {steps.map((step, idx) => {
+              <div className="space-y-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-xl">
+                {steps.map((stepMsg, idx) => {
+                  const isCurrent = idx === currentStepIndex;
                   const isCompleted = completedSteps.includes(idx);
-                  const isActive = idx === currentStepIndex;
 
                   return (
-                    <motion.div
+                    <div
                       key={idx}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{
-                        opacity: isCompleted || isActive ? 1 : 0.25,
-                        x: 0,
-                      }}
-                      transition={{ duration: 0.4 }}
-                      className="flex items-center gap-3 text-xs"
+                      className={`flex items-center gap-3 text-xs transition-opacity duration-300 ${
+                        isCurrent ? 'opacity-100 font-semibold text-slate-900' : isCompleted ? 'opacity-50 text-slate-500' : 'opacity-25 text-slate-400'
+                      }`}
                     >
-                      <div className="flex-shrink-0">
-                        {isCompleted ? (
-                          <div className="h-5 w-5 rounded-full bg-green-950/60 border border-green-800 flex items-center justify-center">
-                            <Check className="h-3 w-3 text-green-400" />
-                          </div>
-                        ) : isActive ? (
-                          <Loader className="animate-spin h-5 w-5 text-indigo-500" />
-                        ) : (
-                          <div className="h-5 w-5 rounded-full border border-slate-900 bg-slate-950" />
-                        )}
-                      </div>
-                      <span className={`font-medium ${isActive ? 'text-white font-semibold' : 'text-slate-400'}`}>
-                        {step}
-                      </span>
-                    </motion.div>
+                      {isCompleted ? (
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      ) : isCurrent ? (
+                        <Loader className="animate-spin h-4 w-4 text-blue-650 flex-shrink-0" />
+                      ) : (
+                        <div className="h-4 w-4 rounded-full border border-slate-350 flex-shrink-0" />
+                      )}
+                      <span>{stepMsg}</span>
+                    </div>
                   );
                 })}
               </div>
@@ -428,56 +403,62 @@ export default function JobDescriptionMatcher() {
           </motion.div>
         )}
 
-        {/* Comparative scorecard report */}
-        {!matching && matchResult && (
+        {/* Step 3: Match results report output */}
+        {matchResult && !matching && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: easeCurve }}
-            className="space-y-6 animate-fade-in"
+            transition={{ duration: 0.4, ease: easeCurve }}
+            className="space-y-6"
           >
-            {/* Top Score Dial & breakdown gauges */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            {/* Top row: match dials & highlights */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
               
-              {/* Dial Score */}
-              <div className="md:col-span-2 p-6 bg-slate-900/20 border border-slate-800/80 rounded-2xl flex flex-col items-center justify-center text-center space-y-4 shadow-xl">
-                <span className="text-xs font-bold text-slate-350 uppercase tracking-wider block">Overall suitability Match</span>
-                
-                <div className="relative h-28 w-28 flex items-center justify-center bg-slate-950 border border-slate-900 rounded-full shadow-inner">
-                  <span className="text-3xl font-extrabold text-indigo-400 font-mono">{animatedScore}%</span>
-                  <div className="absolute inset-2 rounded-full border-2 border-indigo-500/10 border-t-indigo-400" />
+              {/* Dial Gauge */}
+              <div className="lg:col-span-2 p-6 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col justify-between items-center text-center">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Overall Match Score</h3>
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">Job description compatibility rate</span>
                 </div>
 
-                <div className="text-center">
-                  <span className="text-[10px] text-slate-500 block">Interview Probability:</span>
-                  <span className={`text-xs font-bold ${
-                    matchResult.interviewProbability === 'High' ? 'text-green-400' : matchResult.interviewProbability === 'Medium' ? 'text-yellow-400' : 'text-red-400'
+                <div className="relative h-32 w-32 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full shadow-inner my-6">
+                  <span className="text-3xl font-extrabold text-indigo-600 font-mono">{animatedScore}%</span>
+                  <div className="absolute inset-2 rounded-full border-2 border-indigo-500/10 border-t-indigo-600 animate-spin-slow" />
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Interview Probability</span>
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider ${
+                    matchResult.interviewProbability === 'High' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-yellow-50 text-yellow-750 border border-yellow-200'
                   }`}>
-                    {matchResult.interviewProbability} Probability
+                    {matchResult.interviewProbability} probability
                   </span>
                 </div>
               </div>
 
-              {/* Gauges breakdown grid */}
-              <div className="md:col-span-3 p-6 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl flex flex-col justify-between">
+              {/* Subscores & summaries */}
+              <div className="lg:col-span-3 p-6 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col justify-between">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Recruiter Breakdown Score</h3>
-                  <p className="text-[10px] text-slate-500 mt-1">{matchResult.matchSummary}</p>
+                  <h3 className="text-xs font-bold text-slate-850 uppercase tracking-wider">JD Gap Analysis Summary</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed mt-2.5">
+                    {matchResult.matchSummary}
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-6">
+                {/* Subscores sliders */}
+                <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-100 mt-6">
                   {[
-                    { label: 'Skills Match', score: matchResult.subScores.skillsMatch, color: 'bg-emerald-500', text: 'text-emerald-400' },
-                    { label: 'Experience Match', score: matchResult.subScores.experienceMatch, color: 'bg-indigo-500', text: 'text-indigo-400' },
-                    { label: 'Project Match', score: matchResult.subScores.projectMatch, color: 'bg-green-500', text: 'text-green-400' },
-                    { label: 'Education Match', score: matchResult.subScores.educationMatch, color: 'bg-blue-500', text: 'text-blue-400' },
+                    { name: 'Skills Match', score: matchResult.subScores.skillsMatch, color: 'bg-blue-500', text: 'text-blue-600' },
+                    { name: 'Experience Match', score: matchResult.subScores.experienceMatch, color: 'bg-indigo-500', text: 'text-indigo-650' },
+                    { name: 'Projects Match', score: matchResult.subScores.projectMatch, color: 'bg-purple-500', text: 'text-purple-600' },
+                    { name: 'Education Match', score: matchResult.subScores.educationMatch, color: 'bg-green-500', text: 'text-green-600' },
                   ].map((sub, idx) => (
                     <div key={idx} className="space-y-1.5">
-                      <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
-                        <span>{sub.label}</span>
-                        <span className={sub.text}>{sub.score}%</span>
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-500 font-semibold">{sub.name}</span>
+                        <span className={`font-bold ${sub.text}`}>{sub.score}%</span>
                       </div>
-                      <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-900">
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                         <div className={`h-full ${sub.color} rounded-full`} style={{ width: `${sub.score}%` }} />
                       </div>
                     </div>
@@ -487,225 +468,146 @@ export default function JobDescriptionMatcher() {
 
             </div>
 
-            {/* Keyword Comparisons and Recommendations lists */}
+            {/* Keyword mappings & missing links */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
               
-              {/* Keywords Match List */}
-              <div className="lg:col-span-2 p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl space-y-4">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">JD Keywords Matches</h3>
-
-                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                  {(matchResult.matchedKeywords || []).map((k, i) => (
-                    <div key={i} className="flex justify-between items-center p-2.5 bg-slate-955/40 border border-slate-900 rounded-lg text-xs">
-                      <span className="font-semibold text-slate-300">{k}</span>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase bg-green-950/40 border border-green-900/40 text-green-400">Matched</span>
-                    </div>
-                  ))}
-                  {(matchResult.missingKeywords || []).map((k, i) => (
-                    <div key={i} className="flex justify-between items-center p-2.5 bg-slate-955/40 border border-slate-900 rounded-lg text-xs">
-                      <span className="font-semibold text-slate-300">{k}</span>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase bg-red-950/40 border border-red-900/40 text-red-400">Missing</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Keywords to add */}
-              <div className="lg:col-span-3 p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl space-y-4">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-yellow-400" /> Top 10 Keywords To Add
+              {/* Keywords comparison columns */}
+              <div className="lg:col-span-2 p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-blue-500" /> Key Terms matching
                 </h3>
-                
-                <p className="text-[10px] text-slate-500 leading-relaxed">
-                  Integrate these matching industry phrases directly into your resume summaries and descriptions to align with ATS filters.
-                </p>
 
-                <div className="flex flex-wrap gap-2">
-                  {(matchResult.top10KeywordsToAdd || []).map((k, idx) => (
-                    <span key={idx} className="text-xs font-semibold px-3 py-1 bg-slate-950 border border-slate-850 hover:border-slate-800 text-slate-300 rounded-lg flex items-center gap-1">
-                      <PlusCircle className="w-3.5 h-3.5 text-blue-450" /> {k}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                <div className="space-y-4">
+                  {/* Matched Keywords */}
+                  <div className="space-y-2">
+                    <span className="text-[9px] text-green-600 font-bold uppercase tracking-wider block">Matched Keywords</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {matchResult.matchedKeywords.map((kw, i) => (
+                        <span key={i} className="text-[10px] px-2 py-0.5 bg-green-50 border border-green-200 text-green-700 rounded-md">
+                          {kw}
+                        </span>
+                      ))}
+                      {matchResult.matchedKeywords.length === 0 && <span className="text-xs italic text-slate-400">None detected.</span>}
+                    </div>
+                  </div>
 
-            </div>
-
-            {/* Skills Compare Section */}
-            <div className="p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl space-y-4">
-              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Required Skills Analysis</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Matched Skills */}
-                <div className="space-y-2.5">
-                  <span className="text-[10px] text-green-400 font-bold uppercase tracking-wide flex items-center gap-1">
-                    <ThumbsUp className="w-3.5 h-3.5" /> Matched Skills
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {(matchResult.matchedSkills || []).map((s, idx) => (
-                      <span key={idx} className="text-xs font-semibold px-2.5 py-1 bg-green-950/40 border border-green-900/50 text-green-400 rounded-lg">
-                        {s}
-                      </span>
-                    ))}
-                    {(matchResult.matchedSkills || []).length === 0 && (
-                      <span className="text-xs text-slate-550 italic">None identified.</span>
-                    )}
+                  {/* Missing Keywords */}
+                  <div className="space-y-2">
+                    <span className="text-[9px] text-red-650 font-bold uppercase tracking-wider block">Missing Keywords Gaps</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {matchResult.missingKeywords.map((kw, i) => (
+                        <span key={i} className="text-[10px] px-2 py-0.5 bg-red-50 border border-red-200 text-red-700 rounded-md">
+                          {kw}
+                        </span>
+                      ))}
+                      {matchResult.missingKeywords.length === 0 && <span className="text-xs italic text-slate-400">None detected.</span>}
+                    </div>
                   </div>
                 </div>
-
-                {/* Missing Skills */}
-                <div className="space-y-2.5">
-                  <span className="text-[10px] text-red-400 font-bold uppercase tracking-wide flex items-center gap-1">
-                    <XCircle className="w-3.5 h-3.5" /> Missing Skills
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {(matchResult.missingSkills || []).map((s, idx) => (
-                      <span key={idx} className="text-xs font-semibold px-2.5 py-1 bg-red-955/40 border border-red-900/50 text-red-400 rounded-lg">
-                        {s}
-                      </span>
-                    ))}
-                    {(matchResult.missingSkills || []).length === 0 && (
-                      <span className="text-xs text-slate-550 italic">No missing skills detected!</span>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Critique Panels (Experience, Projects, Education, formatting) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              <div className="p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl space-y-2">
-                <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wide">Experience Analysis</span>
-                <p className="text-xs text-slate-400 leading-relaxed">{matchResult.experienceAnalysis}</p>
               </div>
 
-              <div className="p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl space-y-2">
-                <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wide">Project Analysis</span>
-                <p className="text-xs text-slate-400 leading-relaxed">{matchResult.projectAnalysis}</p>
-              </div>
+              {/* Actionables and optimizations columns */}
+              <div className="lg:col-span-3 p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-indigo-500" /> SDE Action Recommendations
+                </h3>
 
-              <div className="p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl space-y-2">
-                <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wide">Education & Formatting</span>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {matchResult.educationAnalysis} <br className="my-2" />
-                  <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wide block mt-2">ATS Compatibility:</span>
-                  {matchResult.atsCompatibility}
-                </p>
-              </div>
-
-            </div>
-
-            {/* Improvements and refactors */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-              
-              {/* Optimization suggestions list */}
-              <div className="lg:col-span-2 p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl space-y-4">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Suggested improvements</h3>
-                <ul className="space-y-3 pl-4 text-xs text-slate-450 list-disc list-inside">
-                  {(matchResult.resumeImprovements || []).map((imp, idx) => (
-                    <li key={idx} className="marker:text-blue-500">{imp}</li>
+                <ul className="space-y-3.5 text-xs text-slate-650 leading-relaxed pl-4 list-disc list-inside">
+                  {matchResult.resumeImprovements.map((imp, i) => (
+                    <li key={i} className="marker:text-blue-600">{imp}</li>
                   ))}
                 </ul>
               </div>
 
-              {/* Optimized bullet points refactor */}
-              <div className="lg:col-span-3 p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl flex flex-col justify-between space-y-4">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1">
-                    <TrendingUp className="w-4 h-4 text-green-400" /> Optimized SDE Bullet Points
-                  </h3>
-                  <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                    Google-style STAR description sentences matching SDE tasks in the pasted Job Description. Copy and use these bullet points directly in your project profiles.
-                  </p>
-                </div>
-
-                <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-                  {(matchResult.optimizedBulletPoints || []).map((bp, idx) => (
-                    <div key={idx} className="p-3.5 bg-blue-955/15 border border-blue-900/35 rounded-xl text-slate-300 text-xs font-medium italic leading-relaxed">
-                      "{bp}"
-                    </div>
-                  ))}
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    onClick={copyBulletPoints}
-                    className="w-full py-2.5 bg-slate-950 border border-slate-900 hover:bg-slate-900 text-xs font-bold text-slate-350 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    <Copy className="w-3.5 h-3.5 text-blue-450" /> Copy Optimized Bullet Points
-                  </button>
-                </div>
-              </div>
-
             </div>
 
-            {/* Hiring Recommendation banner */}
-            <div className="p-5 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-indigo-950/60 border border-indigo-800 flex items-center justify-center text-indigo-400 flex-shrink-0">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div className="text-xs space-y-0.5">
-                <span className="font-bold text-slate-250 block">Hiring recommendation</span>
-                <p className="text-slate-450 leading-relaxed">{matchResult.hiringRecommendation}</p>
+            {/* Keyword gaps list */}
+            <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Top 10 Keywords to Add (Highest ATS weight)</h3>
+              <div className="flex flex-wrap gap-2">
+                {matchResult.top10KeywordsToAdd.map((kw, i) => (
+                  <span key={i} className="text-xs font-semibold px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-700 rounded-lg">
+                    {kw}
+                  </span>
+                ))}
               </div>
             </div>
 
-            {/* Action Buttons panel */}
-            <div className="p-4 bg-slate-900/20 border border-slate-800/80 rounded-2xl shadow-xl flex flex-wrap gap-4 items-center justify-between">
+            {/* AI Generated Bullet Points */}
+            <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <PlusCircle className="w-4 h-4 text-blue-500" /> Recommended Bullet Refactors (For this Job Description)
+              </h3>
               
-              {/* Score Estimate display */}
-              <div className="text-xs">
-                <span className="text-slate-500 block">Estimated ATS Score After Changes:</span>
-                <span className="font-extrabold text-green-400 font-mono text-sm">
-                  {matchResult.estimatedATSScoreAfterChanges}% Score
+              <div className="space-y-3">
+                {matchResult.optimizedBulletPoints.map((bp, i) => (
+                  <div key={i} className="p-3.5 bg-slate-55 border border-slate-200 rounded-xl flex items-center justify-between gap-4 text-xs">
+                    <p className="text-slate-700 leading-relaxed italic font-medium">"{bp}"</p>
+                    <button
+                      onClick={() => copyToClipboard(bp)}
+                      className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-800 flex-shrink-0 transition-colors"
+                      title="Copy to Clipboard"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Section summaries */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* Experience */}
+              <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
+                <span className="text-[10px] text-indigo-650 font-bold uppercase tracking-wider block flex items-center gap-1">
+                  <ThumbsUp className="w-3.5 h-3.5 text-indigo-500" /> Experience Assessment
                 </span>
+                <p className="text-xs text-slate-600 leading-relaxed">{matchResult.experienceAnalysis}</p>
               </div>
 
+              {/* Projects */}
+              <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
+                <span className="text-[10px] text-blue-650 font-bold uppercase tracking-wider block flex items-center gap-1">
+                  <ThumbsUp className="w-3.5 h-3.5 text-blue-500" /> Projects Assessment
+                </span>
+                <p className="text-xs text-slate-600 leading-relaxed">{matchResult.projectAnalysis}</p>
+              </div>
+
+              {/* Hiring Recommendation */}
+              <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
+                <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider block flex items-center gap-1">
+                  <TrendingUp className="w-3.5 h-3.5 text-purple-500" /> Hiring Recommendation
+                </span>
+                <p className="text-xs text-slate-600 leading-relaxed">{matchResult.hiringRecommendation}</p>
+              </div>
+
+            </div>
+
+            {/* Actions Bar */}
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-wrap gap-4 items-center justify-between">
               <div className="flex gap-4">
                 <button
-                  onClick={() => showToast('Coming in Next Milestone')}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all shadow-md shadow-blue-500/10"
+                  onClick={() => navigate('/resume-rewriter')}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-650 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all shadow-xs"
                 >
-                  <Download className="w-3.5 h-3.5" /> Generate Optimized Resume
+                  <Sparkles className="w-3.5 h-3.5 text-yellow-300" /> Improve Resume Bullet Points
+                </button>
+                <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-semibold rounded-lg text-slate-750 transition-all shadow-xs">
+                  <Download className="w-3.5 h-3.5" /> Download Match Report
                 </button>
                 <button
                   onClick={resetMatcher}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-slate-950 border border-slate-900 hover:bg-slate-900 text-xs font-semibold rounded-lg text-slate-350 transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-semibold rounded-lg text-slate-700 transition-all"
                 >
                   <RefreshCw className="w-3.5 h-3.5" /> Match with Another JD
                 </button>
               </div>
-
             </div>
 
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
-  );
-}
-
-// Minimal internal helper icons
-function UploadIcon(props: any) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" x2="12" y1="3" y2="15" />
-    </svg>
   );
 }
