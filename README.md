@@ -42,7 +42,6 @@ AI Resume Copilot is a full-stack web application that helps students and job se
 # 🛠 Tech Stack
 
 ## Frontend
-
 - React
 - TypeScript
 - Vite
@@ -52,7 +51,6 @@ AI Resume Copilot is a full-stack web application that helps students and job se
 - Axios
 
 ## Backend
-
 - Node.js
 - Express
 - TypeScript
@@ -92,7 +90,6 @@ AI-Resume-Copilot
 # ⚙️ Environment Variables
 
 ## Backend (.env)
-
 ```env
 PORT=5000
 DATABASE_URL=...
@@ -101,41 +98,49 @@ GEMINI_API_KEY=...
 ```
 
 ## Frontend (.env)
-
 ```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
 ---
 
-# 🚀 Installation
+# 🚀 Installation & Setup
 
-Clone the repository
-
+### 1. Clone the repository
 ```bash
 git clone <repository-url>
 cd ai-placement-companion
 ```
 
-Install dependencies
-
+### 2. Install dependencies
+Run from the root directory:
 ```bash
 npm install
 ```
 
-Run backend
-
+### 3. Run Database Migrations
+Initialize database tables with Prisma:
 ```bash
 cd backend
-npm run dev
+npx prisma migrate dev
 ```
 
-Run frontend
+---
 
+# 💻 Running the Application
+
+### Option A: Double-Click Launcher (Windows)
+Simply double-click the **`start.bat`** file in the root folder of the project. It will automatically verify dependencies and spin up both the backend API and frontend client concurrently.
+
+### Option B: Terminal Command
+Run the dev task from the monorepo root folder:
 ```bash
-cd frontend
 npm run dev
 ```
+
+The services will boot at:
+- **Frontend Client**: `http://localhost:3000/`
+- **Backend API**: `http://localhost:5000/`
 
 ---
 
