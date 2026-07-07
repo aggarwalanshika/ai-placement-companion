@@ -6,7 +6,6 @@ import {
   FileText,
   Sparkles,
   Briefcase,
-  Download,
   History,
   Clock,
   PlusCircle,
@@ -260,28 +259,6 @@ export default function Dashboard() {
                 <li key={idx} className="marker:text-blue-600 pl-1">{imp}</li>
               ))}
             </ul>
-          </motion.div>
-
-          {/* Quick PDF Export Placeholder */}
-          <motion.div
-            variants={itemVariants}
-            className="p-6 bg-white border border-slate-200 rounded-2xl space-y-4 flex flex-col justify-between shadow-2xs"
-          >
-            <div>
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Download className="w-4 h-4 text-blue-500" /> PDF Print Export
-              </h3>
-              <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
-                Print a clean, single-page, ATS-optimized PDF resume version using executive standards.
-              </p>
-            </div>
-            
-            <button
-              disabled
-              className="w-full py-2.5 bg-slate-50 border border-slate-200 text-slate-400 text-[10px] font-bold rounded-xl cursor-not-allowed text-center transition-colors block mt-2"
-            >
-              Export Print Version (Next Milestone)
-            </button>
           </motion.div>
 
         </div>

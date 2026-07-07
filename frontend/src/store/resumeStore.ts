@@ -575,18 +575,22 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       parsedSections: parsed,
     };
 
+    const currentVersions = get().versions || [];
+    const nextVerIndex = currentVersions.length + 1;
     const version1: ResumeVersion = {
-      id: 'version-1',
+      id: `version-${nextVerIndex}`,
       timestamp: new Date().toLocaleString(),
       atsScore: analysis?.overallScore || 70,
       acceptedCount: 0,
       ignoredCount: 0,
-      userNotes: 'Original Uploaded Resume',
+      userNotes: `Original Upload (${fileName})`,
       parsedSections: JSON.parse(JSON.stringify(parsed)),
       fileName: fileName,
       resumeText: text,
     };
     
+    const newVersionsList = [version1, ...currentVersions];
+
     try {
       localStorage.setItem(
         'resume-copilot-data',
@@ -595,7 +599,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
           resumeFileName: fileName,
           analysisResult: analysisWithSections,
           originalSections: parsed,
-          versions: [version1],
+          versions: newVersionsList,
           candidateName: name,
           candidateEmail: email,
           candidatePhone: phone,
@@ -611,7 +615,7 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
       resumeFileName: fileName,
       analysisResult: analysisWithSections,
       originalSections: parsed,
-      versions: [version1],
+      versions: newVersionsList,
       candidateName: name,
       candidateEmail: email,
       candidatePhone: phone,
@@ -622,17 +626,31 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
   },
 
   clearResume: () => {
+    const { versions } = get();
     try {
-      localStorage.removeItem('resume-copilot-data');
+      localStorage.setItem(
+        'resume-copilot-data',
+        JSON.stringify({
+          resumeText: null,
+          resumeFileName: null,
+          analysisResult: null,
+          originalSections: null,
+          versions,
+          candidateName: 'Anshika Aggarwal',
+          candidateEmail: 'aggarwalanshika4@gmail.com',
+          candidatePhone: '+91-8707881770',
+          candidateLinks: 'LinkedIn | LeetCode | GitHub',
+        })
+      );
     } catch (e) {
-      console.error('Failed to remove persisted data:', e);
+      console.error('Failed to persist cleared data:', e);
     }
     set({
       resumeText: null,
       resumeFileName: null,
       analysisResult: null,
       originalSections: null,
-      versions: [],
+      versions,
       candidateName: 'Anshika Aggarwal',
       candidateEmail: 'aggarwalanshika4@gmail.com',
       candidatePhone: '+91-8707881770',
