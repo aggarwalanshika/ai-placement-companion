@@ -90,11 +90,11 @@ export default function ResumeAnalyzer() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const steps = [
-    'Extracting raw content nodes from PDF stream',
-    'Identifying experience and project metadata timelines',
-    'Running grammar assessment checks',
-    'Cross-referencing core SDE technical skill keywords',
-    'Calculating placement readiness matching score metrics',
+    'Reading resume content...',
+    'Organizing experiences and projects...',
+    'Checking writing and formatting...',
+    'Identifying technical skills...',
+    'Calculating resume score...',
   ];
 
   useEffect(() => {
@@ -469,8 +469,8 @@ export default function ResumeAnalyzer() {
             <div className="w-full max-w-md space-y-8 relative z-10">
               <div className="text-center space-y-2">
                 <Cpu className="mx-auto h-10 w-10 text-blue-600 animate-pulse" />
-                <h3 className="text-base font-bold text-slate-800 tracking-wide uppercase">AI Placement Intelligence Core</h3>
-                <p className="text-xs text-slate-500">Formulating SDE profile metrics matching job target specifications.</p>
+                <h3 className="text-base font-bold text-slate-800 tracking-wide uppercase">AI Resume Analyzer</h3>
+                <p className="text-xs text-slate-500">Reviewing your resume draft against target requirements.</p>
               </div>
 
               <div className="space-y-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-xl">

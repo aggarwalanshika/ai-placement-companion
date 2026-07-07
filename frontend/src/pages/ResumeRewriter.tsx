@@ -439,8 +439,8 @@ export default function ResumeRewriter() {
                   <div className="p-12 border border-slate-200 bg-white rounded-2xl text-center space-y-4 min-h-[220px] flex flex-col justify-center items-center shadow-xs">
                     <Loader className="animate-spin h-7 w-7 text-indigo-500" />
                     <div>
-                      <span className="text-xs font-bold text-slate-900 block">Calling Gemini SDE Optimizer...</span>
-                      <span className="text-[10px] text-slate-500 block mt-1">Refactoring wording using STAR/X-Y-Z guidelines.</span>
+                      <span className="text-xs font-bold text-slate-900 block">Optimizing resume wording...</span>
+                      <span className="text-[10px] text-slate-500 block mt-1">Applying active, impact-focused improvements.</span>
                     </div>
                   </div>
                 ) : activeSuggestion ? (
@@ -469,7 +469,7 @@ export default function ResumeRewriter() {
                       {/* AI Rewritten Block */}
                       <div className="p-5 bg-white border border-blue-200 rounded-2xl text-xs space-y-3 shadow-sm">
                         <div className="flex justify-between items-center">
-                          <span className="text-[9px] text-blue-600 font-bold uppercase">SDE Optimized Refactor</span>
+                          <span className="text-[9px] text-blue-600 font-bold uppercase">AI Suggested Refactor</span>
                           <button
                             onClick={() => {
                               setIsEditing(!isEditing);
@@ -526,7 +526,7 @@ export default function ResumeRewriter() {
                     <div>
                       <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Optimize Select Item</h4>
                       <p className="text-[11px] text-slate-550 mt-1 leading-relaxed">
-                        Click on any bullet point in the layout list, then click below to trigger Google Gemini refactoring.
+                        Click on any bullet point in the layout list, then click below to trigger AI-powered refactoring.
                       </p>
                     </div>
                     <button

@@ -287,12 +287,12 @@ export default function JobDescriptionMatcher() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const steps = [
-    'Uploading Resume...',
-    'Extracting Text...',
-    'Understanding Job Description...',
-    'Comparing Skills...',
-    'Generating AI Recommendations...',
-    'Preparing Report...',
+    'Reading resume content...',
+    'Scanning resume text...',
+    'Reading job description...',
+    'Matching technical skills...',
+    'Creating matching suggestions...',
+    'Preparing report...',
   ];
 
   const showToast = (msg: string) => {
@@ -593,8 +593,8 @@ export default function JobDescriptionMatcher() {
             <div className="w-full max-w-md space-y-8 relative z-10">
               <div className="text-center space-y-2">
                 <Cpu className="mx-auto h-10 w-10 text-blue-600 animate-pulse" />
-                <h3 className="text-base font-bold text-slate-800 tracking-wide uppercase">AI Cross-Matching Core</h3>
-                <p className="text-xs text-slate-550">Mapping profiles against target SDE parameters...</p>
+                <h3 className="text-base font-bold text-slate-800 tracking-wide uppercase">AI Job Matcher</h3>
+                <p className="text-xs text-slate-500">Comparing your resume against role requirements...</p>
               </div>
 
               <div className="space-y-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-xl">

@@ -115,7 +115,7 @@ export default function ResumeHistory() {
       {isRescanning && (
         <div className="p-4 bg-slate-100 border border-slate-200 rounded-xl flex items-center gap-3 text-xs text-slate-700">
           <Loader className="animate-spin h-5 w-5 text-blue-600" />
-          <span>Analyzing stored draft with Gemini models. Please wait...</span>
+          <span>Reviewing and parsing stored draft. Please wait...</span>
         </div>
       )}
 
