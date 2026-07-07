@@ -338,19 +338,20 @@ export default function ResumeAnalyzer() {
             {/* Left Col: Upload Zone */}
             <div className="lg:col-span-3 space-y-6">
               {uploadState !== 'success' ? (
-                <div
+                <motion.div
                   onDragEnter={handleDrag}
                   onDragOver={handleDrag}
                   onDragLeave={handleDrag}
                   onDrop={handleDrop}
-                  className={`p-12 border-2 border-dashed rounded-2xl text-center flex flex-col items-center justify-center space-y-6 transition-all ${
+                  whileHover={{ scale: 1.005, translateY: -2 }}
+                  className={`p-12 border-2 border-dashed rounded-2xl text-center flex flex-col items-center justify-center space-y-6 transition-all shadow-2xs ${
                     dragActive
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-350 bg-white hover:border-slate-400 hover:bg-slate-50/50'
+                      ? 'border-blue-500 bg-blue-50/50'
+                      : 'border-slate-250 bg-white hover:border-slate-350 hover:bg-slate-50/50'
                   }`}
                 >
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-400">
-                    <Upload className="h-8 w-8" />
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-450 group-hover:scale-110 transition-transform">
+                    <Upload className="h-8 w-8 text-slate-400" />
                   </div>
                   <div className="space-y-1">
                     <h3 className="text-sm font-bold text-slate-800">Drag and drop your resume file here</h3>
@@ -392,14 +393,14 @@ export default function ResumeAnalyzer() {
 
                   {/* Error Alert */}
                   {uploadState === 'error' && errorMessage && (
-                    <div className="w-full max-w-sm rounded-xl bg-red-50 border border-red-200 p-4 flex gap-3 text-xs text-red-600 text-left">
+                    <div className="w-full max-w-sm rounded-xl bg-red-50 border border-red-200 p-4 flex gap-3 text-xs text-red-600 text-left animate-shake">
                       <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
                       <span>{errorMessage}</span>
                     </div>
                   )}
-                </div>
+                </motion.div>
               ) : (
-                <div className="p-12 border border-slate-200 bg-white rounded-2xl text-center flex flex-col items-center justify-center space-y-4">
+                <div className="p-12 border border-slate-200 bg-white rounded-2xl text-center flex flex-col items-center justify-center space-y-4 shadow-2xs">
                   <div className="h-12 w-12 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
                     <Check className="h-6 w-6 text-green-500" />
                   </div>
@@ -413,7 +414,10 @@ export default function ResumeAnalyzer() {
               )}
 
               {/* Quick Upload Tester Banner */}
-              <div className="p-4 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs shadow-xs">
+              <motion.div
+                whileHover={{ scale: 1.005, translateY: -1 }}
+                className="p-4 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs shadow-2xs transition-all duration-300"
+              >
                 <span className="text-slate-500">Want to test the AI report instantly without uploading a file?</span>
                 <button
                   onClick={handleSimulatedUpload}
@@ -421,12 +425,15 @@ export default function ResumeAnalyzer() {
                 >
                   Run simulated analysis <ArrowRight className="w-3.5 h-3.5" />
                 </button>
-              </div>
+              </motion.div>
             </div>
 
             {/* Right Col: Recent Uploads & Previous Analyses */}
             <div className="lg:col-span-2 space-y-6">
-              <div className="p-5 bg-white border border-slate-200 rounded-xl space-y-4 shadow-xs">
+              <motion.div
+                whileHover={{ translateY: -2 }}
+                className="p-5 bg-white border border-slate-200 rounded-xl space-y-4 shadow-2xs transition-all duration-300"
+              >
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                   <FileText className="w-4 h-4 text-blue-500" /> Recent Uploads
                 </h3>
@@ -435,7 +442,7 @@ export default function ResumeAnalyzer() {
                     <span className="text-slate-500 italic block py-2">No recent uploads yet.</span>
                   ) : (
                     versions.map((hist, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-250 rounded-lg">
+                      <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:shadow-3xs transition-all duration-200 hover:translate-x-0.5">
                         <span className="text-slate-700 flex items-center gap-1.5 hover:text-slate-900 transition-colors cursor-pointer font-medium">
                           <FileText className="w-3.5 h-3.5 text-blue-500" /> {hist.fileName || 'resume.pdf'}
                         </span>
@@ -444,7 +451,7 @@ export default function ResumeAnalyzer() {
                     ))
                   )}
                 </div>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
         )}
