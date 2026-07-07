@@ -141,15 +141,15 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Main Grid splits */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Left 2 Columns */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="md:col-span-2 space-y-6">
           
           {/* Quick Actions (Dashboard Launcher Links) */}
           <motion.div
             variants={itemVariants}
-            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+            className="grid grid-cols-1 sm:grid-cols-3 gap-4"
           >
             {quickActions.map((act, idx) => (
               <Link
