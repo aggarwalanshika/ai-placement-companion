@@ -120,7 +120,7 @@ export default function Dashboard() {
               <Sparkles className="w-4 h-4 text-indigo-500" /> Recent Suggestions
             </h3>
             
-            <ul className="space-y-3 pl-4 text-xs text-slate-650 list-disc list-inside leading-relaxed">
+            <ul className="space-y-3 pl-4 text-xs text-slate-600 list-disc list-inside leading-relaxed">
               {improvements.slice(0, 4).map((imp: string, idx: number) => (
                 <li key={idx} className="marker:text-blue-600">{imp}</li>
               ))}

@@ -47,7 +47,7 @@ export default function Login() {
         <div className="bg-white border border-slate-200 py-8 px-4 shadow-2xl rounded-2xl sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-4 flex gap-3 text-xs text-red-650">
+              <div className="rounded-xl bg-red-50 border border-red-200 p-4 flex gap-3 text-xs text-red-600">
                 <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
                 <span>{error}</span>
               </div>

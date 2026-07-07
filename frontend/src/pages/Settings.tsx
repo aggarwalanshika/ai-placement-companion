@@ -8,7 +8,7 @@ export default function SettingsPage() {
       <div className="flex justify-between items-center border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-950 flex items-center gap-1.5">
-            <Settings className="w-5 h-5 text-indigo-650" /> Account Settings
+            <Settings className="w-5 h-5 text-indigo-600" /> Account Settings
           </h1>
           <p className="text-slate-550 text-xs">Manage your profile, API configurations, and resume optimization defaults.</p>
         </div>

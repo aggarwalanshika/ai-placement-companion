@@ -298,7 +298,7 @@ export default function ResumeAnalyzer() {
     const sc = analysisResult.sectionScores;
     return [
       { name: 'Experience', score: sc.experience || 70, color: 'bg-blue-500', text: 'text-blue-600' },
-      { name: 'Projects', score: sc.projects || 75, color: 'bg-indigo-500', text: 'text-indigo-650' },
+      { name: 'Projects', score: sc.projects || 75, color: 'bg-indigo-500', text: 'text-indigo-600' },
       { name: 'Technical Skills', score: sc.skills || 80, color: 'bg-green-500', text: 'text-green-600' },
       { name: 'Education', score: sc.education || 90, color: 'bg-purple-500', text: 'text-purple-600' },
       { name: 'Grammar', score: sc.grammar || 85, color: 'bg-yellow-500', text: 'text-yellow-600' },
@@ -367,7 +367,7 @@ export default function ResumeAnalyzer() {
 
                   <button
                     onClick={triggerFilePicker}
-                    className="px-5 py-2.5 bg-blue-650 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-sm transition-all"
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-sm transition-all"
                   >
                     Choose File from Local Storage
                   </button>
@@ -377,13 +377,13 @@ export default function ResumeAnalyzer() {
                     <div className="w-full max-w-xs space-y-2 pt-2">
                       <div className="flex justify-between items-center text-[10px]">
                         <span className="text-slate-500 font-semibold flex items-center gap-1">
-                          <Loader className="animate-spin w-3 h-3 text-blue-650" /> Uploading file...
+                          <Loader className="animate-spin w-3 h-3 text-blue-600" /> Uploading file...
                         </span>
                         <span className="text-slate-500 font-mono">{uploadProgress}%</span>
                       </div>
                       <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-blue-650 rounded-full transition-all duration-300"
+                          className="h-full bg-blue-600 rounded-full transition-all duration-300"
                           style={{ width: `${uploadProgress}%` }}
                         />
                       </div>
@@ -392,7 +392,7 @@ export default function ResumeAnalyzer() {
 
                   {/* Error Alert */}
                   {uploadState === 'error' && errorMessage && (
-                    <div className="w-full max-w-sm rounded-xl bg-red-50 border border-red-200 p-4 flex gap-3 text-xs text-red-650 text-left">
+                    <div className="w-full max-w-sm rounded-xl bg-red-50 border border-red-200 p-4 flex gap-3 text-xs text-red-600 text-left">
                       <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
                       <span>{errorMessage}</span>
                     </div>
@@ -417,7 +417,7 @@ export default function ResumeAnalyzer() {
                 <span className="text-slate-500">Want to test the AI report instantly without uploading a file?</span>
                 <button
                   onClick={handleSimulatedUpload}
-                  className="text-blue-650 font-semibold hover:underline flex items-center gap-0.5"
+                  className="text-blue-600 font-semibold hover:underline flex items-center gap-0.5"
                 >
                   Run simulated analysis <ArrowRight className="w-3.5 h-3.5" />
                 </button>
@@ -481,7 +481,7 @@ export default function ResumeAnalyzer() {
                       {isCompleted ? (
                         <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
                       ) : isCurrent ? (
-                        <Loader className="animate-spin h-4 w-4 text-blue-650 flex-shrink-0" />
+                        <Loader className="animate-spin h-4 w-4 text-blue-600 flex-shrink-0" />
                       ) : (
                         <div className="h-4 w-4 rounded-full border border-slate-300 flex-shrink-0" />
                       )}
@@ -595,7 +595,7 @@ export default function ResumeAnalyzer() {
                   <Sparkles className="w-4 h-4 text-indigo-500" /> SDE Action Recommendations
                 </h3>
                 
-                <ul className="space-y-3.5 text-xs text-slate-650 leading-relaxed pl-4 list-disc list-inside">
+                <ul className="space-y-3.5 text-xs text-slate-600 leading-relaxed pl-4 list-disc list-inside">
                   {(analysisResult.suggestions || []).map((sug, idx) => (
                     <li key={idx} className="marker:text-blue-600">{sug}</li>
                   ))}
@@ -633,7 +633,7 @@ export default function ResumeAnalyzer() {
 
               {/* Weaknesses */}
               <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
-                <h3 className="text-xs font-bold text-red-650 uppercase tracking-wider">Identified Weaknesses</h3>
+                <h3 className="text-xs font-bold text-red-600 uppercase tracking-wider">Identified Weaknesses</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {(analysisResult.weaknesses || []).map((wk, idx) => (
                     <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
@@ -673,7 +673,7 @@ export default function ResumeAnalyzer() {
                       </div>
 
                       <div className="p-4 bg-blue-50/50 border border-blue-200 rounded-xl space-y-1">
-                        <span className="text-[9px] text-blue-650 font-bold block uppercase">Recommended Bullet Point Refactor</span>
+                        <span className="text-[9px] text-blue-600 font-bold block uppercase">Recommended Bullet Point Refactor</span>
                         <p className="text-slate-700 leading-relaxed font-semibold italic">
                           "{proj.improved}"
                         </p>
@@ -694,11 +694,11 @@ export default function ResumeAnalyzer() {
               <div className="flex gap-4">
                 <button
                   onClick={() => navigate('/resume-rewriter')}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-650 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all shadow-xs"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all shadow-xs"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-yellow-300" /> Improve Resume
                 </button>
-                <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-205 hover:bg-slate-50 text-xs font-semibold rounded-lg text-slate-750 transition-all">
+                <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-semibold rounded-lg text-slate-750 transition-all">
                   <Download className="w-3.5 h-3.5" /> Download PDF Report
                 </button>
                 <button

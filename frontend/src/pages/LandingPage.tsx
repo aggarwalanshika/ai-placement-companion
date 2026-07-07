@@ -45,7 +45,7 @@ export default function LandingPage() {
       title: 'Job Description Matcher',
       description: 'Compare your skills directly against company listings to spot missing requirements instantly.',
       icon: Layers,
-      color: 'text-blue-650 bg-blue-50 border-blue-200',
+      color: 'text-blue-600 bg-blue-50 border-blue-200',
     },
     {
       title: 'AI Resume Chat',
@@ -100,7 +100,7 @@ export default function LandingPage() {
           </Link>
           <Link
             to="/signup"
-            className="flex items-center gap-1 px-3.5 py-1.5 bg-blue-650 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-sm transition-all"
+            className="flex items-center gap-1 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-sm transition-all"
           >
             Get Started
           </Link>
@@ -126,7 +126,7 @@ export default function LandingPage() {
           className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 max-w-3xl mx-auto leading-[1.1] font-sans"
         >
           Build ATS-Optimized <br />
-          <span className="text-blue-600 bg-gradient-to-r from-blue-650 via-indigo-600 to-indigo-700 bg-clip-text text-transparent">
+          <span className="text-blue-600 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 bg-clip-text text-transparent">
             Resumes with AI
           </span>
         </motion.h1>
@@ -141,7 +141,7 @@ export default function LandingPage() {
         <motion.div variants={itemVariants} className="flex items-center justify-center gap-3 pt-2">
           <Link
             to="/resume-analyzer"
-            className="px-5 py-2.5 bg-blue-655 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-sm transition-all flex items-center gap-1.5"
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-sm transition-all flex items-center gap-1.5"
           >
             Analyze Resume <ArrowRight className="w-3.5 h-3.5" />
           </Link>
@@ -220,7 +220,7 @@ export default function LandingPage() {
                 {/* Rewriter Card */}
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                   <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">AI Resume Rewrites</span>
-                  <div className="text-xl font-extrabold text-indigo-650">3 pending</div>
+                  <div className="text-xl font-extrabold text-indigo-600">3 pending</div>
                   <span className="text-[8px] text-slate-500 block">+15% score increase potential</span>
                 </div>
 
@@ -322,7 +322,7 @@ export default function LandingPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
           {stats.map((st, idx) => (
             <div key={idx} className="p-5 text-center bg-white border border-slate-200 rounded-2xl space-y-1 shadow-xs">
-              <span className="text-2xl md:text-3xl font-extrabold text-blue-650 block">{st.value}</span>
+              <span className="text-2xl md:text-3xl font-extrabold text-blue-600 block">{st.value}</span>
               <span className="text-[10px] font-bold text-slate-450 block tracking-wide uppercase">{st.label}</span>
             </div>
           ))}

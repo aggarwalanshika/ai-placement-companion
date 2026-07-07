@@ -95,7 +95,7 @@ export default function ResumeHistory() {
             initial={{ opacity: 0, y: -20, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: -20, x: '-50%' }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-650 text-xs font-bold text-white rounded-lg shadow-xl flex items-center gap-1.5 border border-blue-500"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-600 text-xs font-bold text-white rounded-lg shadow-xl flex items-center gap-1.5 border border-blue-500"
           >
             <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" /> {toast}
           </motion.div>
@@ -114,7 +114,7 @@ export default function ResumeHistory() {
 
       {isRescanning && (
         <div className="p-4 bg-slate-100 border border-slate-200 rounded-xl flex items-center gap-3 text-xs text-slate-700">
-          <Loader className="animate-spin h-5 w-5 text-blue-650" />
+          <Loader className="animate-spin h-5 w-5 text-blue-600" />
           <span>Analyzing stored draft with Gemini models. Please wait...</span>
         </div>
       )}
@@ -152,7 +152,7 @@ export default function ResumeHistory() {
                     <span>•</span>
                     <span>Version: {item.id.replace('version-', 'v')}</span>
                     <span>•</span>
-                    <span className="text-indigo-650 font-semibold">{item.userNotes || 'Optimized Draft'}</span>
+                    <span className="text-indigo-600 font-semibold">{item.userNotes || 'Optimized Draft'}</span>
                   </div>
                 </div>
               </div>
@@ -176,7 +176,7 @@ export default function ResumeHistory() {
                   <button
                     onClick={() => handleDownload(item, 'pdf')}
                     disabled={isRescanning}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-650 hover:bg-blue-700 text-white text-[10px] font-bold rounded-lg transition-all disabled:opacity-50"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-lg transition-all disabled:opacity-50"
                   >
                     <Download className="w-3.5 h-3.5" /> PDF
                   </button>

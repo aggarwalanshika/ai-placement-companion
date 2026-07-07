@@ -127,7 +127,7 @@ export default function ResumePreview() {
             initial={{ opacity: 0, y: -20, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: -20, x: '-50%' }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-650 text-xs font-bold text-white rounded-lg shadow-xl flex items-center gap-1.5 border border-blue-500"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-600 text-xs font-bold text-white rounded-lg shadow-xl flex items-center gap-1.5 border border-blue-500"
           >
             <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" /> {toast}
           </motion.div>
@@ -138,7 +138,7 @@ export default function ResumePreview() {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-950 flex items-center gap-1.5">
-            <Sparkles className="w-5 h-5 text-indigo-650" /> AI Resume Copilot Workspace
+            <Sparkles className="w-5 h-5 text-indigo-600" /> AI Resume Copilot Workspace
           </h1>
           <p className="text-slate-550 text-xs mt-0.5">Generate a professional, ATS-optimized resume directly from structured SDE profiles.</p>
         </div>
@@ -224,7 +224,7 @@ export default function ResumePreview() {
                     </button>
                     <button
                       onClick={handleExportPdf}
-                      className="px-3 py-1 bg-blue-650 hover:bg-blue-700 text-[11px] font-bold rounded-lg text-white transition-all shadow-xs"
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-[11px] font-bold rounded-lg text-white transition-all shadow-xs"
                     >
                       Download PDF
                     </button>
@@ -381,7 +381,7 @@ export default function ResumePreview() {
           {versions.length > 0 && (
             <div className="p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
               <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block flex items-center gap-1.5">
-                <History className="w-4 h-4 text-indigo-650" /> Saved Revisions Log
+                <History className="w-4 h-4 text-indigo-600" /> Saved Revisions Log
               </span>
 
               <div className="overflow-x-auto">
@@ -419,7 +419,7 @@ export default function ResumePreview() {
                               deleteVersion(ver.id);
                               showToastMsg('Revision deleted.');
                             }}
-                            className="p-1 rounded text-red-500 hover:text-red-650 hover:bg-red-50 transition-all"
+                            className="p-1 rounded text-red-500 hover:text-red-600 hover:bg-red-50 transition-all"
                             title="Delete version"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

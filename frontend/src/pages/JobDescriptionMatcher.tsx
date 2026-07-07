@@ -207,7 +207,7 @@ export function InteractiveSkillGraph({ matched, missing, showToast }: SkillGrap
                     y={ny + 24}
                     textAnchor="middle"
                     className={`text-[8px] font-sans font-semibold tracking-wide uppercase transition-colors duration-200 ${
-                      isSelected ? 'fill-blue-650 font-extrabold' : 'fill-slate-600 group-hover:fill-slate-900'
+                      isSelected ? 'fill-blue-600 font-extrabold' : 'fill-slate-600 group-hover:fill-slate-900'
                     }`}
                   >
                     {node.name}
@@ -437,7 +437,7 @@ export default function JobDescriptionMatcher() {
             initial={{ opacity: 0, y: -20, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: -20, x: '-50%' }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-650 text-xs font-bold text-white rounded-lg shadow-xl flex items-center gap-1.5 border border-blue-500"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-blue-600 text-xs font-bold text-white rounded-lg shadow-xl flex items-center gap-1.5 border border-blue-500"
           >
             <Sparkles className="w-4 h-4 text-yellow-300" /> {toastMessage}
           </motion.div>
@@ -448,7 +448,7 @@ export default function JobDescriptionMatcher() {
       <div className="flex justify-between items-center border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-950 flex items-center gap-1.5">
-            <Briefcase className="w-5 h-5 text-indigo-655" /> AI Job Description Matcher
+            <Briefcase className="w-5 h-5 text-indigo-600" /> AI Job Description Matcher
           </h1>
           <p className="text-slate-550 text-xs">Compare your resume directly with a targeted job listing to identify critical keyword gaps.</p>
         </div>
@@ -491,7 +491,7 @@ export default function JobDescriptionMatcher() {
                 />
 
                 {errorMessage && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 text-xs text-red-655">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 text-xs text-red-600">
                     <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
                     <span>{errorMessage}</span>
                   </div>
@@ -501,7 +501,7 @@ export default function JobDescriptionMatcher() {
                   <button
                     onClick={handleAnalyzeMatch}
                     disabled={!resumeText || jobDescription.trim().length < 20}
-                    className="w-full py-3 bg-indigo-650 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-xl text-white shadow-xs transition-all flex items-center justify-center gap-1.5"
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-xl text-white shadow-xs transition-all flex items-center justify-center gap-1.5"
                   >
                     <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" /> Analyze Job Match
                   </button>
@@ -514,14 +514,14 @@ export default function JobDescriptionMatcher() {
             <div className="lg:col-span-2 space-y-6">
               <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-indigo-650" /> Resume Target Source
+                  <FileText className="w-4 h-4 text-indigo-600" /> Resume Target Source
                 </h3>
 
                 {resumeFileName ? (
                   <div className="space-y-4">
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs">
-                        <FileText className="w-5 h-5 text-green-505" />
+                        <FileText className="w-5 h-5 text-green-500" />
                         <div>
                           <span className="text-slate-800 font-semibold block truncate max-w-[160px]">{resumeFileName}</span>
                           <span className="text-[10px] text-slate-500 block">Preloaded from previous scan</span>
@@ -561,13 +561,13 @@ export default function JobDescriptionMatcher() {
                       <div className="w-full space-y-2 pt-2">
                         <div className="flex justify-between items-center text-[10px] text-slate-500">
                           <span className="font-semibold flex items-center gap-1">
-                            <Loader className="animate-spin w-3 h-3 text-blue-650" /> Uploading file...
+                            <Loader className="animate-spin w-3 h-3 text-blue-600" /> Uploading file...
                           </span>
                           <span className="font-mono">{uploadProgress}%</span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-blue-655 rounded-full transition-all duration-300"
+                            className="h-full bg-blue-600 rounded-full transition-all duration-300"
                             style={{ width: `${uploadProgress}%` }}
                           />
                         </div>
@@ -612,7 +612,7 @@ export default function JobDescriptionMatcher() {
                       {isCompleted ? (
                         <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
                       ) : isCurrent ? (
-                        <Loader className="animate-spin h-4 w-4 text-blue-650 flex-shrink-0" />
+                        <Loader className="animate-spin h-4 w-4 text-blue-600 flex-shrink-0" />
                       ) : (
                         <div className="h-4 w-4 rounded-full border border-slate-350 flex-shrink-0" />
                       )}
@@ -644,7 +644,7 @@ export default function JobDescriptionMatcher() {
                 </div>
 
                 <div className="relative h-32 w-32 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full shadow-inner my-6">
-                  <span className="text-3xl font-extrabold text-indigo-650 font-mono">{animatedScore}%</span>
+                  <span className="text-3xl font-extrabold text-indigo-600 font-mono">{animatedScore}%</span>
                   <div className="absolute inset-2 rounded-full border-2 border-indigo-500/10 border-t-indigo-600 animate-spin-slow" />
                 </div>
 
@@ -671,7 +671,7 @@ export default function JobDescriptionMatcher() {
                 <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-100 mt-6">
                   {[
                     { name: 'Skills Match', score: matchResult.subScores.skillsMatch, color: 'bg-blue-500', text: 'text-blue-600' },
-                    { name: 'Experience Match', score: matchResult.subScores.experienceMatch, color: 'bg-indigo-550', text: 'text-indigo-650' },
+                    { name: 'Experience Match', score: matchResult.subScores.experienceMatch, color: 'bg-indigo-550', text: 'text-indigo-600' },
                     { name: 'Projects Match', score: matchResult.subScores.projectMatch, color: 'bg-purple-500', text: 'text-purple-600' },
                     { name: 'Education Match', score: matchResult.subScores.educationMatch, color: 'bg-green-500', text: 'text-green-600' },
                   ].map((sub, idx) => (
@@ -722,7 +722,7 @@ export default function JobDescriptionMatcher() {
 
                   {/* Missing Keywords */}
                   <div className="space-y-2">
-                    <span className="text-[9px] text-red-655 font-bold uppercase tracking-wider block">Missing Keywords Gaps</span>
+                    <span className="text-[9px] text-red-600 font-bold uppercase tracking-wider block">Missing Keywords Gaps</span>
                     <div className="flex flex-wrap gap-1.5">
                       {matchResult.missingKeywords.map((kw, i) => (
                         <span key={i} className="text-[10px] px-2 py-0.5 bg-red-50 border border-red-200 text-red-705 rounded-md">
@@ -741,7 +741,7 @@ export default function JobDescriptionMatcher() {
                   <Sparkles className="w-4 h-4 text-indigo-500" /> SDE Action Recommendations
                 </h3>
 
-                <ul className="space-y-3.5 text-xs text-slate-650 leading-relaxed pl-4 list-disc list-inside">
+                <ul className="space-y-3.5 text-xs text-slate-600 leading-relaxed pl-4 list-disc list-inside">
                   {matchResult.resumeImprovements.map((imp, i) => (
                     <li key={i} className="marker:text-blue-600">{imp}</li>
                   ))}
@@ -789,18 +789,18 @@ export default function JobDescriptionMatcher() {
               
               {/* Experience */}
               <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
-                <span className="text-[10px] text-indigo-650 font-bold uppercase tracking-wider block flex items-center gap-1">
+                <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider block flex items-center gap-1">
                   <ThumbsUp className="w-3.5 h-3.5 text-indigo-500" /> Experience Assessment
                 </span>
-                <p className="text-xs text-slate-650 leading-relaxed">{matchResult.experienceAnalysis}</p>
+                <p className="text-xs text-slate-600 leading-relaxed">{matchResult.experienceAnalysis}</p>
               </div>
 
               {/* Projects */}
               <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
-                <span className="text-[10px] text-blue-650 font-bold uppercase tracking-wider block flex items-center gap-1">
+                <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider block flex items-center gap-1">
                   <ThumbsUp className="w-3.5 h-3.5 text-blue-500" /> Projects Assessment
                 </span>
-                <p className="text-xs text-slate-650 leading-relaxed">{matchResult.projectAnalysis}</p>
+                <p className="text-xs text-slate-600 leading-relaxed">{matchResult.projectAnalysis}</p>
               </div>
 
               {/* Hiring Recommendation */}
@@ -808,7 +808,7 @@ export default function JobDescriptionMatcher() {
                 <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider block flex items-center gap-1">
                   <TrendingUp className="w-3.5 h-3.5 text-purple-500" /> Hiring Recommendation
                 </span>
-                <p className="text-xs text-slate-650 leading-relaxed">{matchResult.hiringRecommendation}</p>
+                <p className="text-xs text-slate-600 leading-relaxed">{matchResult.hiringRecommendation}</p>
               </div>
 
             </div>
@@ -818,7 +818,7 @@ export default function JobDescriptionMatcher() {
               <div className="flex gap-4">
                 <button
                   onClick={() => navigate('/resume-rewriter')}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-650 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all shadow-xs"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white transition-all shadow-xs"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-yellow-300" /> Improve Resume Bullet Points
                 </button>

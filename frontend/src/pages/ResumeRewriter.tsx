@@ -173,7 +173,7 @@ export default function ResumeRewriter() {
             initial={{ opacity: 0, y: -20, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: -20, x: '-50%' }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-blue-650 text-xs font-bold text-white rounded-lg shadow-xl border border-blue-500 flex items-center gap-1.5"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-blue-600 text-xs font-bold text-white rounded-lg shadow-xl border border-blue-500 flex items-center gap-1.5"
           >
             <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" /> {toastMessage}
           </motion.div>
@@ -184,7 +184,7 @@ export default function ResumeRewriter() {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-950 flex items-center gap-1.5">
-            <Sparkles className="w-5 h-5 text-indigo-650" /> AI Resume Copilot
+            <Sparkles className="w-5 h-5 text-indigo-600" /> AI Resume Copilot
           </h1>
           <p className="text-slate-550 text-xs mt-0.5">Optimize professional bullet descriptions and metadata fields in real-time.</p>
         </div>
@@ -213,7 +213,7 @@ export default function ResumeRewriter() {
           {/* Central Workflow Transition Button */}
           <button
             onClick={() => navigate('/resume-preview')}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-655 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-xs transition-all"
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-xs transition-all"
           >
             <FileText className="w-4 h-4" /> Preview & Export Resume
           </button>
@@ -311,7 +311,7 @@ export default function ResumeRewriter() {
               <div className="space-y-4">
                 {activeSection === 'experience' && (parsedSections.experience || []).map((entry: any, eIdx: number) => (
                   <div key={eIdx} className="space-y-2">
-                    <div className="text-slate-550 font-bold border-l-2 border-indigo-650 pl-2 text-[11px] uppercase tracking-wide">
+                    <div className="text-slate-550 font-bold border-l-2 border-indigo-600 pl-2 text-[11px] uppercase tracking-wide">
                       {entry.role} at {entry.company} ({entry.date})
                     </div>
                     <div className="space-y-2 pl-3">
@@ -331,7 +331,7 @@ export default function ResumeRewriter() {
                             }`}
                           >
                             {isSelected && (
-                              <div className="absolute top-0 right-0 bg-indigo-650 px-2 py-0.5 text-[8px] font-bold text-white uppercase tracking-wider rounded-bl">
+                              <div className="absolute top-0 right-0 bg-indigo-600 px-2 py-0.5 text-[8px] font-bold text-white uppercase tracking-wider rounded-bl">
                                 Active Selection
                               </div>
                             )}
@@ -352,7 +352,7 @@ export default function ResumeRewriter() {
 
                 {activeSection === 'projects' && (parsedSections.projects || []).map((entry: any, eIdx: number) => (
                   <div key={eIdx} className="space-y-2">
-                    <div className="text-slate-550 font-bold border-l-2 border-indigo-650 pl-2 text-[11px] uppercase tracking-wide">
+                    <div className="text-slate-550 font-bold border-l-2 border-indigo-600 pl-2 text-[11px] uppercase tracking-wide">
                       {entry.title} | {entry.techStack} ({entry.date})
                     </div>
                     <div className="space-y-2 pl-3">
@@ -372,7 +372,7 @@ export default function ResumeRewriter() {
                             }`}
                           >
                             {isSelected && (
-                              <div className="absolute top-0 right-0 bg-indigo-650 px-2 py-0.5 text-[8px] font-bold text-white uppercase tracking-wider rounded-bl">
+                              <div className="absolute top-0 right-0 bg-indigo-600 px-2 py-0.5 text-[8px] font-bold text-white uppercase tracking-wider rounded-bl">
                                 Active Selection
                               </div>
                             )}
@@ -449,7 +449,7 @@ export default function ResumeRewriter() {
                     {/* Metrics Score Card */}
                     <div className="p-4 bg-blue-50/50 border border-blue-200 rounded-2xl flex items-center justify-between">
                       <div>
-                        <span className="text-[9px] text-blue-650 font-bold uppercase block">ATS Keyword Score Match</span>
+                        <span className="text-[9px] text-blue-600 font-bold uppercase block">ATS Keyword Score Match</span>
                         <span className="text-xs font-semibold text-slate-700 mt-1 block">Expected Boost:</span>
                       </div>
                       <span className="text-xl font-extrabold text-green-600 font-mono bg-green-50 border border-green-200 px-3 py-1 rounded-xl">
@@ -495,7 +495,7 @@ export default function ResumeRewriter() {
 
                       {/* Explanation details */}
                       <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-[11px] leading-relaxed text-slate-600 space-y-1">
-                        <span className="text-[9px] text-indigo-650 font-bold uppercase block tracking-wider">Hiring Manager Reasoning</span>
+                        <span className="text-[9px] text-indigo-600 font-bold uppercase block tracking-wider">Hiring Manager Reasoning</span>
                         <p>{activeSuggestion.reason}</p>
                       </div>
 
@@ -511,7 +511,7 @@ export default function ResumeRewriter() {
                       </button>
                       <button
                         onClick={handleAccept}
-                        className="px-4 py-2.5 bg-blue-650 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-xs transition-all flex items-center justify-center gap-1"
+                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-xs font-bold rounded-lg text-white shadow-xs transition-all flex items-center justify-center gap-1"
                       >
                         <Check className="w-4 h-4" /> Merge Rewrite
                       </button>
